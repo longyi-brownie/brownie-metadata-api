@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  metadata_api:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      # Point this to the DB service provided by the database repo's compose/k8s
+      # NOTE: Inside a Docker container on macOS/Windows, use host.docker.internal to reach host services
+      METADATA_POSTGRES_DSN: postgresql://brownie:brownie@host.docker.internal:5432/brownie_metadata
+      METADATA_JWT_SECRET: your-super-secret-jwt-key-change-this-in-production
+      METADATA_JWT_EXPIRES_MINUTES: 60
+      METADATA_DEBUG: "false"
+      METADATA_LOG_LEVEL: INFO
+      METADATA_HOST: 0.0.0.0
+      METADATA_PORT: 8080
+      METADATA_CORS_ORIGINS: '["http://localhost:3000", "http://localhost:8080"]'
+    networks:
+      - brownie-network
+    restart: unless-stopped
+
+networks:
+  brownie-network:
+    driver: bridge

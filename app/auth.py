@@ -1,0 +1,320 @@
+"""Authentication and authorization utilities."""
+
+import uuid
+from datetime import datetime, timedelta
+from typing import Optional, Set
+
+import structlog
+from fastapi import Depends, HTTPException, status, APIRouter
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from sqlalchemy.orm import Session
+
+from .db import get_db
+from .models import User, UserRole, Organization, Team
+from .schemas import UserClaims, LoginRequest, SignupRequest, TokenResponse
+from .settings import settings
+
+logger = structlog.get_logger(__name__)
+
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# JWT security
+security = HTTPBearer()
+
+# Auth router
+router = APIRouter()
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password against its hash."""
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def get_password_hash(password: str) -> str:
+    """Hash a password."""
+    return pwd_context.hash(password)
+
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """Create a JWT access token."""
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=settings.jwt_expires_minutes)
+    
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    return encoded_jwt
+
+
+def verify_token(token: str) -> Optional[UserClaims]:
+    """Verify and decode a JWT token."""
+    try:
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        user_id: str = payload.get("sub")
+        org_id: str = payload.get("org_id")
+        email: str = payload.get("email")
+        roles: list = payload.get("roles", [])
+        
+        if user_id is None or org_id is None or email is None:
+            return None
+            
+        return UserClaims(
+            user_id=uuid.UUID(user_id),
+            org_id=uuid.UUID(org_id),
+            email=email,
+            roles=roles
+        )
+    except (JWTError, ValueError) as e:
+        logger.warning("Invalid token", error=str(e))
+        return None
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+) -> User:
+    """Get the current authenticated user."""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        token = credentials.credentials
+        claims = verify_token(token)
+        if claims is None:
+            raise credentials_exception
+            
+        user = db.query(User).filter(
+            User.id == claims.user_id,
+            User.is_active == True,
+            User.deleted_at.is_(None)
+        ).first()
+        
+        if user is None:
+            raise credentials_exception
+            
+        return user
+    except Exception as e:
+        logger.warning("Authentication failed", error=str(e))
+        raise credentials_exception
+
+
+async def get_current_user_claims(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> UserClaims:
+    """Get the current user's JWT claims."""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        token = credentials.credentials
+        claims = verify_token(token)
+        if claims is None:
+            raise credentials_exception
+        return claims
+    except Exception as e:
+        logger.warning("Token validation failed", error=str(e))
+        raise credentials_exception
+
+
+def require_team_role(team_id: uuid.UUID, allowed_roles: Set[str]) -> callable:
+    """Create a dependency that requires specific team roles."""
+    
+    async def check_team_role(
+        current_user: User = Depends(get_current_user),
+        db: Session = Depends(get_db)
+    ) -> User:
+        """Check if user has required role in the team."""
+        
+        # Check if user belongs to the team
+        if current_user.team_id != team_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User does not belong to this team"
+            )
+        
+        # Check if user has required role
+        if current_user.role.value not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"User role '{current_user.role.value}' not in allowed roles: {allowed_roles}"
+            )
+        
+        return current_user
+    
+    return check_team_role
+
+
+def require_org_access(org_id: uuid.UUID) -> callable:
+    """Create a dependency that requires organization access."""
+    
+    async def check_org_access(
+        current_user: User = Depends(get_current_user)
+    ) -> User:
+        """Check if user belongs to the organization."""
+        
+        if current_user.org_id != org_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User does not belong to this organization"
+            )
+        
+        return current_user
+    
+    return check_org_access
+
+
+def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
+    """Authenticate a user with email and password."""
+    user = db.query(User).filter(
+        User.email == email,
+        User.is_active == True,
+        User.deleted_at.is_(None)
+    ).first()
+    
+    if not user:
+        return None
+    
+    if not user.password_hash or not verify_password(password, user.password_hash):
+        return None
+    
+    return user
+
+
+def create_user_token(user: User) -> str:
+    """Create a JWT token for a user."""
+    roles = [user.role.value] if user.role else []
+    
+    token_data = {
+        "sub": str(user.id),
+        "org_id": str(user.org_id),
+        "email": user.email,
+        "roles": roles,
+        "iat": datetime.utcnow(),
+    }
+    
+    return create_access_token(token_data)
+
+
+# Auth endpoints
+@router.post("/login", response_model=TokenResponse)
+async def login(login_data: LoginRequest, db: Session = Depends(get_db)):
+    """Login with email and password."""
+    user = authenticate_user(db, login_data.email, login_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password"
+        )
+    
+    access_token = create_user_token(user)
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=settings.jwt_expires_minutes * 60
+    )
+
+
+@router.post("/signup", response_model=TokenResponse)
+async def signup(signup_data: SignupRequest, db: Session = Depends(get_db)):
+    """Sign up a new user and create organization/team."""
+    
+    # Check if user already exists
+    existing_user = db.query(User).filter(User.email == signup_data.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User with this email already exists"
+        )
+    
+    # Create organization
+    org_slug = signup_data.organization_name.lower().replace(" ", "-")
+    organization = Organization(
+        name=signup_data.organization_name,
+        slug=org_slug,
+        is_active=True,
+        max_teams=10,
+        max_users_per_team=50,
+    )
+    db.add(organization)
+    db.flush()  # Get the org ID
+    
+    # Create team
+    team_slug = signup_data.team_name.lower().replace(" ", "-")
+    team = Team(
+        name=signup_data.team_name,
+        slug=team_slug,
+        org_id=organization.id,
+        organization_id=organization.id,
+        is_active=True,
+    )
+    db.add(team)
+    db.flush()  # Get the team ID
+    
+    # Create user
+    user = User(
+        email=signup_data.email,
+        username=signup_data.username,
+        full_name=signup_data.full_name,
+        password_hash=get_password_hash(signup_data.password),
+        is_active=True,
+        is_verified=False,
+        team_id=team.id,
+        role=UserRole.ADMIN,  # First user is admin
+        org_id=organization.id,
+        organization_id=organization.id,
+    )
+    db.add(user)
+    db.commit()
+    
+    access_token = create_user_token(user)
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=settings.jwt_expires_minutes * 60
+    )
+
+
+@router.get("/me")
+async def get_current_user_info(current_user: User = Depends(get_current_user)):
+    """Get current user information."""
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "username": current_user.username,
+        "full_name": current_user.full_name,
+        "role": current_user.role.value,
+        "org_id": current_user.org_id,
+        "team_id": current_user.team_id,
+        "is_active": current_user.is_active,
+        "is_verified": current_user.is_verified,
+    }
+
+
+# Okta OIDC stubs (for v1)
+@router.get("/okta/login")
+async def okta_login():
+    """Stub for Okta OIDC login."""
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Okta OIDC integration not implemented in v1"
+    )
+
+
+@router.get("/okta/callback")
+async def okta_callback():
+    """Stub for Okta OIDC callback."""
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Okta OIDC integration not implemented in v1"
+    )

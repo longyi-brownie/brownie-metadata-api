@@ -1,20 +1,49 @@
 """Database configuration and session management."""
 
+import os
 import structlog
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 
 from .settings import settings
+from certificates import cert_manager
 
 logger = structlog.get_logger(__name__)
 
-# Create SQLAlchemy engine
+
+def _build_database_url_with_certs() -> str:
+    """Build database URL with SSL certificates if available."""
+    parsed = urlparse(settings.postgres_dsn)
+    query_params = parse_qs(parsed.query)
+    
+    # Check if mTLS is enabled (production mode)
+    mtls_enabled = os.getenv("METADATA_MTLS_ENABLED", "false").lower() == "true"
+    
+    # Get SSL configuration from certificate manager
+    ssl_config = cert_manager.get_database_ssl_config(mtls_enabled=mtls_enabled)
+    
+    # Add SSL parameters to query string
+    for key, value in ssl_config.items():
+        if value:
+            query_params[key] = [str(value)]
+    
+    # Rebuild query string
+    new_query = urlencode(query_params, doseq=True)
+    
+    # Rebuild URL
+    new_parsed = parsed._replace(query=new_query)
+    return urlunparse(new_parsed)
+
+
+# Create SQLAlchemy engine with certificate support
+database_url = _build_database_url_with_certs()
 engine = create_engine(
-    settings.postgres_dsn,
+    database_url,
     pool_pre_ping=True,
     pool_recycle=300,
     echo=settings.debug,

@@ -1,6 +1,6 @@
 # Brownie Metadata API Makefile
 
-.PHONY: help install dev test lint format clean docker-build docker-up docker-down migrate seed
+.PHONY: help install dev test lint format clean docker-build docker-up docker-down migrate seed security-check security-fix
 
 # Default target
 help:
@@ -16,6 +16,8 @@ help:
 	@echo "  docker-down  Stop services with Docker Compose"
 	@echo "  migrate      Run database migrations"
 	@echo "  seed         Seed database with test data"
+	@echo "  security-check Run security validation"
+	@echo "  security-fix  Fix common security issues"
 
 # Install dependencies
 install:
@@ -70,8 +72,27 @@ seed:
 	@echo "Seeding database with test data..."
 	@echo "This would run a seed script to populate the database with test data"
 
+# Security commands
+security-check:
+	@echo "Running security validation..."
+	python scripts/security_check.py
+
+security-fix:
+	@echo "Fixing common security issues..."
+	@if [ ! -f .env ]; then \
+		echo "Creating .env from template..."; \
+		cp env.template .env; \
+		echo "⚠️  Please edit .env file with your secrets!"; \
+	fi
+	@echo "Setting secure file permissions..."
+	@find . -name "*.key" -exec chmod 600 {} \; 2>/dev/null || true
+	@find . -name "*.crt" -exec chmod 644 {} \; 2>/dev/null || true
+	@find . -name "*.pem" -exec chmod 600 {} \; 2>/dev/null || true
+	@echo "✅ Security fixes applied!"
+
 # Development setup
-setup: install migrate
+setup: install migrate security-fix
 	@echo "Development environment setup complete!"
 	@echo "Run 'make docker-up' to start the services"
 	@echo "Run 'make test' to run tests"
+	@echo "Run 'make security-check' to validate security"

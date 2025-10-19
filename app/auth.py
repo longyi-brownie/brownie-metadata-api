@@ -155,6 +155,82 @@ def require_team_role(team_id: uuid.UUID, allowed_roles: Set[str]) -> callable:
     return check_team_role
 
 
+def require_permission(permission: str) -> callable:
+    """Create a dependency that requires a specific permission."""
+    
+    async def check_permission(
+        current_user: User = Depends(get_current_user),
+        db: Session = Depends(get_db)
+    ) -> User:
+        """Check if user has the required permission."""
+        
+        # Get user's team to check permissions
+        team = db.query(Team).filter(Team.id == current_user.team_id).first()
+        if not team:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User team not found"
+            )
+        
+        # Check role-based permissions
+        user_permissions = _get_role_permissions(current_user.role)
+        
+        # Check team-specific permissions
+        team_permissions = team.permissions or {}
+        user_permissions.update(team_permissions.get(str(current_user.id), {}))
+        
+        if permission not in user_permissions or not user_permissions[permission]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Permission '{permission}' required"
+            )
+        
+        return current_user
+    
+    return check_permission
+
+
+def _get_role_permissions(role: UserRole) -> dict:
+    """Get permissions for a user role."""
+    permissions = {
+        "admin": {
+            "read": True,
+            "write": True,
+            "delete": True,
+            "manage_users": True,
+            "manage_teams": True,
+            "manage_organizations": True,
+            "manage_incidents": True,
+            "manage_agent_configs": True,
+            "manage_stats": True,
+        },
+        "editor": {
+            "read": True,
+            "write": True,
+            "delete": False,
+            "manage_users": False,
+            "manage_teams": False,
+            "manage_organizations": False,
+            "manage_incidents": True,
+            "manage_agent_configs": True,
+            "manage_stats": True,
+        },
+        "viewer": {
+            "read": True,
+            "write": False,
+            "delete": False,
+            "manage_users": False,
+            "manage_teams": False,
+            "manage_organizations": False,
+            "manage_incidents": False,
+            "manage_agent_configs": False,
+            "manage_stats": False,
+        }
+    }
+    
+    return permissions.get(role.value, {})
+
+
 def require_org_access(org_id: uuid.UUID) -> callable:
     """Create a dependency that requires organization access."""
     

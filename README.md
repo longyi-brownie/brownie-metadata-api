@@ -21,6 +21,66 @@ Enterprise-ready FastAPI service for incident management metadata. This service 
 
 ## Architecture
 
+### Database Library Architecture
+
+```mermaid
+graph TB
+    subgraph "FastAPI Server"
+        A[API Endpoints]
+        B[Business Logic]
+        C[SQLAlchemy ORM]
+        D[Certificate Manager]
+    end
+    
+    subgraph "Database"
+        E[PostgreSQL]
+    end
+    
+    A --> B
+    B --> C
+    C -->|DSN + Client Cert| E
+    D -->|Provides Certs| C
+    
+    style A fill:#e1f5fe
+    style C fill:#e8f5e8
+    style E fill:#f3e5f5
+    style D fill:#fff2cc
+```
+
+**How It Works:**
+1. **FastAPI endpoints** receive requests
+2. **Business logic** processes the request
+3. **SQLAlchemy ORM** queries the database using models from `brownie-metadata-database`
+4. **Certificate Manager** provides client certificates for authentication
+5. **PostgreSQL** authenticates using client certificate CN
+
+**Authentication Flow:**
+```python
+# FastAPI Server Code Example
+from sqlalchemy.orm import Session
+from brownie_metadata_database.models import Organization
+
+@app.get("/organizations/{org_id}")
+async def get_organization(org_id: int, db: Session = Depends(get_db)):
+    # SQLAlchemy ORM with certificate authentication
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    return org
+```
+
+**Database Connection:**
+```python
+# DSN with client certificates
+DATABASE_URL = (
+    f"postgresql://user@host:5432/db"
+    f"?sslmode=require"
+    f"&sslcert=/path/to/client.crt"
+    f"&sslkey=/path/to/client.key"
+    f"&sslrootcert=/path/to/ca.crt"
+)
+```
+
+### Entity Relationships
+
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Organizations │    │      Teams      │    │      Users      │
@@ -82,6 +142,15 @@ Enterprise-ready FastAPI service for incident management metadata. This service 
      `METADATA_POSTGRES_DSN=postgresql://brownie:brownie@host.docker.internal:5432/brownie_metadata`
    - When running the API locally (not in Docker), use `localhost` instead of `host.docker.internal`.
 
+3. **Generate development certificates** (optional):
+   ```bash
+   # Generate self-signed certificates for database authentication
+   python scripts/generate_dev_certs.py
+   
+   # This creates certificates in dev-certs/ directory
+   # Update your PostgreSQL config to use these certificates
+   ```
+
 4. **Start the API**:
    ```bash
    uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
@@ -112,6 +181,11 @@ make docker-down
 - `POST /api/v1/auth/signup` - Create user and organization
 - `POST /api/v1/auth/login` - Login with email/password
 - `GET /api/v1/auth/me` - Get current user info
+
+### Okta OIDC
+- `GET /api/v1/okta/login` - Initiate Okta OIDC login
+- `GET /api/v1/okta/callback` - Handle Okta OIDC callback
+- `GET /api/v1/okta/userinfo` - Get user info from Okta token
 
 ### Organizations
 - `POST /api/v1/organizations` - Create organization
@@ -158,14 +232,39 @@ make docker-down
 
 ## Configuration
 
-Environment variables (prefix: `METADATA_`):
+### Environment Setup
 
+**⚠️ SECURITY WARNING**: Never commit secrets to version control!
+
+1. **Copy the template**:
+   ```bash
+   cp env.template .env
+   ```
+
+2. **Update all secrets**:
+   ```bash
+   # Generate a strong JWT secret
+   openssl rand -base64 32
+   
+   # Edit .env file with your values
+   nano .env
+   ```
+
+3. **Validate configuration**:
+   ```bash
+   # The app validates secrets on startup
+   uvicorn app.main:app --reload
+   ```
+
+### Environment Variables
+
+**Required for all environments:**
 ```bash
 # Database
 METADATA_POSTGRES_DSN=postgresql://user:pass@host:port/db
 
-# JWT Authentication
-METADATA_JWT_SECRET=your-secret-key
+# JWT Authentication (MUST be changed from default!)
+METADATA_JWT_SECRET=your-strong-secret-here  # Generate with: openssl rand -base64 32
 METADATA_JWT_EXPIRES_MINUTES=60
 
 # Application
@@ -174,9 +273,80 @@ METADATA_LOG_LEVEL=INFO
 METADATA_HOST=0.0.0.0
 METADATA_PORT=8080
 
-# CORS
+# CORS (restrict in production)
 METADATA_CORS_ORIGINS=["http://localhost:3000"]
 ```
+
+**Production only:**
+```bash
+# Certificate Management (Production)
+VAULT_ENABLED=true
+VAULT_URL=https://vault.yourcompany.com
+VAULT_TOKEN=your-vault-token
+VAULT_CERT_PATH=secret/brownie-metadata/certs
+
+# mTLS Configuration
+METADATA_MTLS_ENABLED=true
+```
+
+**Development only:**
+```bash
+# Certificate Management (Development)
+LOCAL_CERT_DIR=dev-certs
+```
+
+### Security Configuration
+
+See [SECURITY.md](SECURITY.md) for detailed security requirements and best practices.
+
+### Authentication & Authorization
+
+**Multi-Auth Support:**
+- **JWT Authentication** - Email/password with bcrypt hashing
+- **Okta OIDC** - Enterprise SSO integration
+- **Role-Based Access Control (RBAC)** - Team-scoped permissions
+- **Permission System** - Granular access control
+
+**Authentication Flow:**
+```mermaid
+graph TB
+    A[Client Request] --> B{Auth Method}
+    B -->|JWT| C[Verify JWT Token]
+    B -->|Okta| D[OIDC Flow]
+    C --> E[Check User Permissions]
+    D --> F[Exchange Code for Token]
+    F --> G[Get User Info]
+    G --> H[Create/Update User]
+    H --> E
+    E --> I[Authorize Request]
+    I --> J[Execute Operation]
+    
+    style A fill:#e1f5fe
+    style E fill:#e8f5e8
+    style I fill:#fff2cc
+```
+
+**RBAC Permissions:**
+- **Admin**: Full access to all resources
+- **Editor**: Read/write access to incidents, configs, stats
+- **Viewer**: Read-only access to all resources
+
+### Security Features
+
+**Database Security:**
+- **Client Certificate Authentication** - No passwords, uses certificate CN
+- **mTLS Support** - Production mutual certificate verification
+- **Encrypted Connections** - All data encrypted in transit
+- **Certificate Management** - Vault PKI (production) or local files (development)
+- **PostgreSQL Verification** - Server validates client certificate
+
+**API Security:**
+- **JWT Token Validation** - Secure token-based authentication
+- **Okta OIDC Integration** - Enterprise SSO support
+- **Role-Based Permissions** - Granular access control
+- **Multi-tenant Isolation** - Organization-scoped data access
+- **Input Validation** - Pydantic schema validation
+- **SQL Injection Prevention** - SQLAlchemy ORM protection
 
 ## Database Schema
 

@@ -11,6 +11,7 @@ from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_
 from starlette.responses import Response
 
 from .auth import router as auth_router
+from .okta_auth import okta_router
 from .db import init_db, close_db
 from .routers import (
     organizations,
@@ -158,6 +159,7 @@ async def metrics():
 
 # Mount routers under /api/v1
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["authentication"])
+app.include_router(okta_router, prefix="/api/v1", tags=["okta"])
 app.include_router(organizations.router, prefix="/api/v1", tags=["organizations"])
 app.include_router(teams.router, prefix="/api/v1", tags=["teams"])
 app.include_router(users.router, prefix="/api/v1", tags=["users"])

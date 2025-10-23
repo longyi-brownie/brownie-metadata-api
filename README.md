@@ -117,10 +117,20 @@ DATABASE_URL = (
    ```bash
    git clone https://github.com/longyi-brownie/brownie-metadata-api.git
    cd brownie-metadata-api
+   ```
+
+2. **Set up environment**:
+   ```bash
+   cp env.template .env
+   # Edit .env with your configuration
+   ```
+
+3. **Install dependencies**:
+   ```bash
    make install
    ```
 
-2. **Start the database (external dependency)**:
+4. **Start the database (external dependency)**:
    The Metadata API depends on the Brownie Metadata Database project. Start it first.
 
    - Repository: https://github.com/longyi-brownie/brownie-metadata-database
@@ -151,12 +161,12 @@ DATABASE_URL = (
    # Update your PostgreSQL config to use these certificates
    ```
 
-4. **Start the API**:
+5. **Start the API**:
    ```bash
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
+   uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
    ```
 
-5. **Access the API**:
+6. **Access the API**:
    - API: http://localhost:8080
    - Docs: http://localhost:8080/docs
    - Health: http://localhost:8080/health

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user, require_team_role
 from ..db import get_db
-from ..models import Stats, Team
+from ..models import Stats, Team, User
 from ..schemas import StatsCreate, StatsResponse, PaginationSchema, PaginatedResponse
 
 logger = structlog.get_logger(__name__)
@@ -21,7 +21,7 @@ router = APIRouter()
 async def create_stats(
     team_id: uuid.UUID,
     stats_data: StatsCreate,
-    current_user: User = Depends(require_team_role(team_id, {"editor", "admin"})),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Create new statistics/metrics (editor/admin only)."""
@@ -32,6 +32,20 @@ async def create_stats(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Team not found"
+        )
+    
+    # Check team membership
+    if current_user.team_id != team_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not a member of this team"
+        )
+    
+    # Check role permissions (editor/admin only)
+    if current_user.role.value not in {"editor", "admin"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions. Editor or admin role required."
         )
     
     # Create stats
@@ -73,10 +87,17 @@ async def list_stats(
     metric_type: Optional[str] = None,
     since: Optional[datetime] = None,
     until: Optional[datetime] = None,
-    current_user: User = Depends(require_team_role(team_id, {"viewer", "editor", "admin"})),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """List statistics for a team with filters and pagination."""
+    """List statistics for a team with filters and pagination (viewer/editor/admin)."""
+    
+    # Check team membership
+    if current_user.team_id != team_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not a member of this team"
+        )
     
     query = db.query(Stats).filter(Stats.team_id == team_id)
     
@@ -137,11 +158,11 @@ async def get_stats(
             detail="Statistics not found"
         )
     
-    # Check if user belongs to the team (if team-scoped) or organization
+    # Check team membership
     if stats.team_id and current_user.team_id != stats.team_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User does not belong to this team"
+            detail="Not a member of this team"
         )
     
     if current_user.org_id != stats.org_id:
@@ -232,23 +253,25 @@ async def delete_stats(
             detail="Statistics not found"
         )
     
-    # Check permissions
+    # Check organization membership
     if current_user.org_id != stats.org_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User does not belong to this organization"
+            detail="Not a member of this organization"
         )
     
+    # Check team membership
     if stats.team_id and current_user.team_id != stats.team_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User does not belong to this team"
+            detail="Not a member of this team"
         )
     
+    # Check role permissions (admin only)
     if current_user.role.value != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to delete statistics"
+            detail="Insufficient permissions. Admin role required."
         )
     
     db.delete(stats)

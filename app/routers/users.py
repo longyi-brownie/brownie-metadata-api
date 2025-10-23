@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_user, require_org_access, require_team_role
 from ..db import get_db
 from ..models import User, Team, Organization
-from ..schemas import UserCreate, UserResponse, UserUpdate, PaginationSchema, PaginatedResponse
+from ..schemas import UserCreate, UserResponse, UserUpdate, PaginationSchema, PaginatedResponse, PaginatedUserResponse
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -20,10 +20,17 @@ router = APIRouter()
 async def create_user(
     org_id: uuid.UUID,
     user_data: UserCreate,
-    current_user: User = Depends(require_org_access(org_id)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Create a new user in an organization."""
+    
+    # Check organization access
+    if current_user.org_id != org_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this organization"
+        )
     
     # Verify organization exists
     organization = db.query(Organization).filter(Organization.id == org_id).first()
@@ -95,14 +102,21 @@ async def create_user(
     return user
 
 
-@router.get("/organizations/{org_id}/users", response_model=PaginatedResponse)
+@router.get("/organizations/{org_id}/users", response_model=PaginatedUserResponse)
 async def list_users(
     org_id: uuid.UUID,
     pagination: PaginationSchema = Depends(),
-    current_user: User = Depends(require_org_access(org_id)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List users in an organization with pagination."""
+    
+    # Check organization access
+    if current_user.org_id != org_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this organization"
+        )
     
     query = db.query(User).filter(
         User.org_id == org_id,
@@ -131,7 +145,7 @@ async def list_users(
     # Get next cursor
     next_cursor = str(users[-1].id) if users and has_more else None
     
-    return PaginatedResponse(
+    return PaginatedUserResponse(
         items=users,
         next_cursor=next_cursor,
         has_more=has_more

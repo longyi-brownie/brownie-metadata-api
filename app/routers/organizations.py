@@ -62,10 +62,17 @@ async def create_organization(
 @router.get("/organizations/{org_id}", response_model=OrganizationResponse)
 async def get_organization(
     org_id: uuid.UUID,
-    current_user: User = Depends(require_org_access(org_id)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get organization by ID."""
+    
+    # Check organization access
+    if current_user.org_id != org_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this organization"
+        )
     
     organization = db.query(Organization).filter(Organization.id == org_id).first()
     if not organization:
@@ -81,10 +88,17 @@ async def get_organization(
 async def update_organization(
     org_id: uuid.UUID,
     org_data: OrganizationUpdate,
-    current_user: User = Depends(require_org_access(org_id)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Update organization."""
+    
+    # Check organization access
+    if current_user.org_id != org_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this organization"
+        )
     
     organization = db.query(Organization).filter(Organization.id == org_id).first()
     if not organization:

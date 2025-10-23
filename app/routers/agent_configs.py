@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user, require_team_role
 from ..db import get_db
-from ..models import AgentConfig, Team
+from ..models import AgentConfig, Team, User
 from ..schemas import (
     AgentConfigCreate, AgentConfigResponse, AgentConfigUpdate, 
     AgentConfigListParams, PaginatedResponse
@@ -23,7 +23,7 @@ router = APIRouter()
 async def create_agent_config(
     team_id: uuid.UUID,
     config_data: AgentConfigCreate,
-    current_user: User = Depends(require_team_role(team_id, {"editor", "admin"})),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Create a new agent configuration (editor/admin only)."""
@@ -34,6 +34,20 @@ async def create_agent_config(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Team not found"
+        )
+    
+    # Check team membership
+    if current_user.team_id != team_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not a member of this team"
+        )
+    
+    # Check role permissions (editor/admin only)
+    if current_user.role.value not in {"editor", "admin"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions. Editor or admin role required."
         )
     
     # Check for unique name within team
@@ -88,10 +102,17 @@ async def create_agent_config(
 async def list_agent_configs(
     team_id: uuid.UUID,
     params: AgentConfigListParams = Depends(),
-    current_user: User = Depends(require_team_role(team_id, {"viewer", "editor", "admin"})),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """List agent configurations for a team with pagination."""
+    """List agent configurations for a team with pagination (viewer/editor/admin)."""
+    
+    # Check team membership
+    if current_user.team_id != team_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not a member of this team"
+        )
     
     query = db.query(AgentConfig).filter(AgentConfig.team_id == team_id)
     
@@ -137,7 +158,7 @@ async def get_agent_config(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get agent configuration by ID."""
+    """Get agent configuration by ID (viewer/editor/admin)."""
     
     config = db.query(AgentConfig).filter(AgentConfig.id == config_id).first()
     if not config:
@@ -146,7 +167,7 @@ async def get_agent_config(
             detail="Agent configuration not found"
         )
     
-    # Check if user belongs to the team
+    # Check team membership
     if current_user.team_id != config.team_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -173,17 +194,18 @@ async def update_agent_config(
             detail="Agent configuration not found"
         )
     
-    # Check if user belongs to the team and has write permissions
+    # Check team membership
     if current_user.team_id != config.team_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User does not belong to this team"
+            detail="Not a member of this team"
         )
     
+    # Check role permissions (editor/admin only)
     if current_user.role.value not in {"editor", "admin"}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to update agent configuration"
+            detail="Insufficient permissions. Editor or admin role required."
         )
     
     # Check optimistic locking
@@ -244,17 +266,18 @@ async def delete_agent_config(
             detail="Agent configuration not found"
         )
     
-    # Check if user belongs to the team and has admin permissions
+    # Check team membership
     if current_user.team_id != config.team_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User does not belong to this team"
+            detail="Not a member of this team"
         )
     
+    # Check role permissions (admin only)
     if current_user.role.value != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to delete agent configuration"
+            detail="Insufficient permissions. Admin role required."
         )
     
     # Soft delete by setting is_active to False

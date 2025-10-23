@@ -21,12 +21,14 @@ help:
 
 # Install dependencies
 install:
-	pip install uv
+	python3 -m pip install uv
+	uv venv
 	uv pip install -e .
 
 # Install development dependencies
 dev:
-	pip install uv
+	python3 -m pip install uv
+	uv venv
 	uv pip install -e ".[dev]"
 
 # Run tests

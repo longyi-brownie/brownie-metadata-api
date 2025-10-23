@@ -76,6 +76,14 @@ class PaginatedResponse(BaseSchema):
     has_more: bool = False
 
 
+class PaginatedUserResponse(BaseSchema):
+    """Paginated response wrapper for users."""
+    
+    items: List[UserResponse]
+    next_cursor: Optional[str] = None
+    has_more: bool = False
+
+
 # Organization schemas
 class OrganizationBase(BaseSchema):
     """Base organization schema."""
@@ -157,7 +165,7 @@ class UserBase(BaseSchema):
     avatar_url: Optional[str] = Field(None, max_length=500)
     is_active: bool = True
     is_verified: bool = False
-    preferences: Dict[str, Any] = Field(default_factory=dict)
+    preferences: Optional[Dict[str, Any]] = None
 
 
 class UserCreate(UserBase):

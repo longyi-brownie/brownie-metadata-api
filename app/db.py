@@ -21,6 +21,20 @@ def _build_database_url_with_certs() -> str:
     parsed = urlparse(settings.postgres_dsn)
     query_params = parse_qs(parsed.query)
     
+    # Check if sslmode is already set in the DSN (e.g., sslmode=disable)
+    existing_sslmode = query_params.get('sslmode', [None])[0]
+    
+    # If sslmode is explicitly set to disable, don't add SSL config
+    if existing_sslmode == 'disable':
+        return settings.postgres_dsn
+    
+    # Check if SSL parameters are already present in the DSN
+    ssl_params_present = any(param in query_params for param in ['sslcert', 'sslkey', 'sslrootcert'])
+    
+    # If SSL parameters are already present, don't override them
+    if ssl_params_present:
+        return settings.postgres_dsn
+    
     # Check if mTLS is enabled (production mode)
     mtls_enabled = os.getenv("METADATA_MTLS_ENABLED", "false").lower() == "true"
     
@@ -40,16 +54,34 @@ def _build_database_url_with_certs() -> str:
     return urlunparse(new_parsed)
 
 
-# Create SQLAlchemy engine with certificate support
-database_url = _build_database_url_with_certs()
-engine = create_engine(
-    database_url,
-    pool_pre_ping=True,
-    pool_recycle=300,
-    echo=settings.debug,
-    # Use UTC timezone
-    connect_args={"options": "-c timezone=UTC"},
-)
+def _create_engine():
+    """Create SQLAlchemy engine with certificate support."""
+    # Build database URL with certificate support
+    database_url = _build_database_url_with_certs()
+    # Ensure we use psycopg driver by using postgresql+psycopg:// scheme
+    if database_url.startswith("postgresql://"):
+        database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+
+    # Extract SSL parameters from DSN for connect_args
+    parsed = urlparse(database_url)
+    query_params = parse_qs(parsed.query)
+    connect_args = {"options": "-c timezone=UTC"}
+
+    # Add SSL parameters to connect_args
+    for ssl_param in ['sslcert', 'sslkey', 'sslrootcert', 'sslmode']:
+        if ssl_param in query_params:
+            connect_args[ssl_param] = query_params[ssl_param][0]
+
+    return create_engine(
+        database_url,
+        pool_pre_ping=True,
+        pool_recycle=300,
+        echo=settings.debug,
+        connect_args=connect_args,
+    )
+
+# Create SQLAlchemy engine
+engine = _create_engine()
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

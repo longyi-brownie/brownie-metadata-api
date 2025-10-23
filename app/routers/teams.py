@@ -20,10 +20,17 @@ router = APIRouter()
 async def create_team(
     org_id: uuid.UUID,
     team_data: TeamCreate,
-    current_user: User = Depends(require_org_access(org_id)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Create a new team under an organization."""
+    
+    # Check organization access
+    if current_user.org_id != org_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this organization"
+        )
     
     # Verify organization exists
     organization = db.query(Organization).filter(Organization.id == org_id).first()
@@ -76,10 +83,17 @@ async def create_team(
 @router.get("/organizations/{org_id}/teams", response_model=List[TeamResponse])
 async def list_teams(
     org_id: uuid.UUID,
-    current_user: User = Depends(require_org_access(org_id)),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List teams in an organization."""
+    
+    # Check organization access
+    if current_user.org_id != org_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this organization"
+        )
     
     teams = db.query(Team).filter(
         Team.org_id == org_id,
@@ -104,8 +118,8 @@ async def get_team(
             detail="Team not found"
         )
     
-    # Check if user belongs to the team's organization
-    if current_user.org_id != team.org_id:
+    # Check team access
+    if team.org_id != current_user.org_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User does not belong to this team's organization"
@@ -118,7 +132,7 @@ async def get_team(
 async def update_team(
     team_id: uuid.UUID,
     team_data: TeamUpdate,
-    current_user: User = Depends(require_team_role(team_id, {"admin"})),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Update team (admin only)."""
@@ -128,6 +142,13 @@ async def update_team(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Team not found"
+        )
+    
+    # Check team access
+    if team.org_id != current_user.org_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User does not belong to this team's organization"
         )
     
     # Update fields
@@ -152,7 +173,7 @@ async def update_team(
 async def add_team_member(
     team_id: uuid.UUID,
     member_data: TeamMemberAdd,
-    current_user: User = Depends(require_team_role(team_id, {"admin"})),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Add a member to a team (admin only)."""
@@ -163,6 +184,20 @@ async def add_team_member(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Team not found"
+        )
+    
+    # Check team membership
+    if current_user.team_id != team_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not a member of this team"
+        )
+    
+    # Check role permissions (admin only)
+    if current_user.role.value != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions. Admin role required."
         )
     
     # Get user to add
@@ -208,10 +243,24 @@ async def update_team_member(
     team_id: uuid.UUID,
     user_id: uuid.UUID,
     member_data: TeamMemberUpdate,
-    current_user: User = Depends(require_team_role(team_id, {"admin"})),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Update team member role (admin only)."""
+    
+    # Check team membership
+    if current_user.team_id != team_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not a member of this team"
+        )
+    
+    # Check role permissions (admin only)
+    if current_user.role.value != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions. Admin role required."
+        )
     
     # Get user
     user = db.query(User).filter(
@@ -251,10 +300,24 @@ async def update_team_member(
 async def remove_team_member(
     team_id: uuid.UUID,
     user_id: uuid.UUID,
-    current_user: User = Depends(require_team_role(team_id, {"admin"})),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Remove member from team (admin only)."""
+    
+    # Check team membership
+    if current_user.team_id != team_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not a member of this team"
+        )
+    
+    # Check role permissions (admin only)
+    if current_user.role.value != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions. Admin role required."
+        )
     
     # Get user
     user = db.query(User).filter(

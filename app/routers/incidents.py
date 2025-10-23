@@ -25,7 +25,7 @@ router = APIRouter()
 async def create_incident(
     team_id: uuid.UUID,
     incident_data: IncidentCreate,
-    current_user: User = Depends(require_team_role(team_id, {"editor", "admin"})),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Create a new incident (editor/admin only)."""
@@ -36,6 +36,20 @@ async def create_incident(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Team not found"
+        )
+    
+    # Check team membership
+    if current_user.team_id != team_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not a member of this team"
+        )
+    
+    # Check role permissions (editor/admin only)
+    if current_user.role.value not in {"editor", "admin"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions. Editor or admin role required."
         )
     
     # Check for idempotency key if provided
@@ -88,10 +102,17 @@ async def create_incident(
 async def list_incidents(
     team_id: uuid.UUID,
     params: IncidentListParams = Depends(),
-    current_user: User = Depends(require_team_role(team_id, {"viewer", "editor", "admin"})),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """List incidents for a team with filters and pagination."""
+    """List incidents for a team with filters and pagination (viewer/editor/admin)."""
+    
+    # Check team membership
+    if current_user.team_id != team_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not a member of this team"
+        )
     
     query = db.query(Incident).filter(Incident.team_id == team_id)
     
@@ -159,11 +180,11 @@ async def get_incident(
             detail="Incident not found"
         )
     
-    # Check if user belongs to the team
+    # Check team membership
     if current_user.team_id != incident.team_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User does not belong to this team"
+            detail="Not a member of this team"
         )
     
     return incident
@@ -185,17 +206,18 @@ async def update_incident(
             detail="Incident not found"
         )
     
-    # Check if user belongs to the team and has write permissions
+    # Check team membership
     if current_user.team_id != incident.team_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User does not belong to this team"
+            detail="Not a member of this team"
         )
     
+    # Check role permissions (editor/admin only)
     if current_user.role.value not in {"editor", "admin"}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to update incident"
+            detail="Insufficient permissions. Editor or admin role required."
         )
     
     # Update fields
@@ -254,17 +276,18 @@ async def delete_incident(
             detail="Incident not found"
         )
     
-    # Check if user belongs to the team and has admin permissions
+    # Check team membership
     if current_user.team_id != incident.team_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User does not belong to this team"
+            detail="Not a member of this team"
         )
     
+    # Check role permissions (admin only)
     if current_user.role.value != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to delete incident"
+            detail="Insufficient permissions. Admin role required."
         )
     
     db.delete(incident)

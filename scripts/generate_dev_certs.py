@@ -105,7 +105,7 @@ ST = CA
 L = San Francisco
 O = Brownie Development
 OU = IT Department
-CN = brownie-metadata-api
+CN = brownie-fastapi-server
 
 [v3_req]
 basicConstraints = CA:FALSE
@@ -114,7 +114,7 @@ subjectAltName = @alt_names
 
 [alt_names]
 DNS.1 = localhost
-DNS.2 = brownie-metadata-api
+DNS.2 = brownie-fastapi-server
 IP.1 = 127.0.0.1
 """
     
@@ -216,7 +216,7 @@ def main():
     print("   ssl_ca_file = '/tmp/pg-certs/ca.crt'")
     print("   ssl_cert_file = 'client'")
     print("\n🔧 Example DSN:")
-    print("   postgresql://brownie@localhost:5432/brownie_metadata?sslmode=require&sslcert=dev-certs/client.crt&sslkey=dev-certs/client.key&sslrootcert=dev-certs/ca.crt")
+    print("   postgresql://brownie-fastapi-server@localhost:5432/brownie_metadata?sslmode=require&sslcert=dev-certs/client.crt&sslkey=dev-certs/client.key&sslrootcert=dev-certs/ca.crt")
 
 
 if __name__ == "__main__":

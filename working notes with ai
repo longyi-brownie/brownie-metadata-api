@@ -1,0 +1,40 @@
+review the current codebase and understand what it does
+this prohect work closes with a metadata database repo, which is in @brownie-metadata-database/ for your reference when you need it
+
+
+---
+
+cool could we try to hit some crud endpoints on user maybe
+ to create, view, and manage a user
+
+---
+awesome I am trying to make this an enterprise level product i can sell to customers
+since the core functionality now is working, what do we need
+
+documenation 
+client how to do authentication in readme
+link to security 
+
+day2 operation
+security
+scaling
+metric
+alerting
+
+ai docs
+cursor rules
+agent.md
+
+
+
+
+
+
+
+
+what's models minimal 
+
+
+
+env.example
+env.template

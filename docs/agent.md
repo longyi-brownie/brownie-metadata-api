@@ -68,6 +68,48 @@ uv run safety check
 - **Maintainability**: Clean, consistent code is easier to maintain
 - **Type Safety**: MyPy prevents runtime type errors
 
+### Git Workflow (MANDATORY)
+
+**CRITICAL: NEVER commit directly to main branch!**
+
+**Always use Pull Requests for all changes:**
+
+```bash
+# 1. Create feature branch
+git checkout -b feature/your-feature-name
+
+# 2. Make your changes
+# ... edit files ...
+
+# 3. Run linting tools (MANDATORY)
+uv run ruff check . --fix
+uv run ruff format .
+uv run mypy app/
+uv run bandit -r app/
+uv run safety check
+
+# 4. Commit changes
+git add .
+git commit -m "feat: your feature description"
+
+# 5. Push branch
+git push origin feature/your-feature-name
+
+# 6. Create Pull Request via GitHub UI
+# - Add description of changes
+# - Request code review
+# - Wait for CI/CD to pass
+# - Get approval before merging
+```
+
+**Why Pull Requests are Mandatory:**
+- **Code Review**: Catch bugs and security issues before production
+- **CI/CD Integration**: Automated testing and linting on every PR
+- **Audit Trail**: Complete history of who changed what and why
+- **Quality Gate**: Prevents broken code from reaching main branch
+- **Collaboration**: Team knowledge sharing and best practices
+- **Enterprise Standards**: Required for customer-facing products
+
 ### Code Patterns
 
 #### Authentication Flow
@@ -224,6 +266,9 @@ except SpecificException as e:
 ## Code Review Checklist
 
 When reviewing code, ensure:
+- [ ] **Pull Request created** (never direct commits to main)
+- [ ] **Linting tools passed** (ruff, mypy, bandit, safety)
+- [ ] **CI/CD pipeline passed** (all tests green)
 - [ ] Security implications reviewed
 - [ ] Multi-tenancy requirements met
 - [ ] Input validation implemented

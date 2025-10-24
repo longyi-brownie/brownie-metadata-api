@@ -52,6 +52,27 @@ uv run bandit -r app/
 uv run safety check
 ```
 
+### Git Workflow (MANDATORY)
+- **NEVER commit directly to main branch**
+- **ALWAYS use Pull Requests** for all changes
+- **Create feature branches** for all development work
+- **Require code review** before merging
+- **Run CI/CD pipeline** on PR before merge
+
+**Branch workflow:**
+```bash
+# Create feature branch
+git checkout -b feature/your-feature-name
+
+# Make changes and commit
+git add .
+git commit -m "feat: your feature description"
+
+# Push branch and create PR
+git push origin feature/your-feature-name
+# Then create PR via GitHub UI
+```
+
 ### FastAPI Patterns
 - Use dependency injection for database sessions and authentication
 - Implement proper HTTP status codes and error responses
@@ -191,6 +212,9 @@ async def create_user(user_data: UserCreate, db: Session) -> User:
 - Implement proper logging aggregation
 
 ## Code Review Checklist
+- [ ] **Pull Request created** (never direct commits to main)
+- [ ] **Linting tools passed** (ruff, mypy, bandit, safety)
+- [ ] **CI/CD pipeline passed** (all tests green)
 - [ ] Security implications reviewed
 - [ ] Input validation implemented
 - [ ] Error handling comprehensive

@@ -64,10 +64,12 @@ docker-down:
 
 # Database commands
 migrate:
-	alembic upgrade head
+	@echo "Database migrations are handled by the brownie-metadata-db package"
+	@echo "Run migrations in the database repository, not here"
 
 migrate-create:
-	alembic revision --autogenerate -m "$(message)"
+	@echo "Database migrations are handled by the brownie-metadata-db package"
+	@echo "Create migrations in the database repository, not here"
 
 # Seed database (placeholder)
 seed:

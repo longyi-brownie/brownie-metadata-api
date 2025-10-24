@@ -27,8 +27,6 @@ RUN uv pip install --system -e .
 
 # Copy application code
 COPY app/ ./app/
-COPY alembic/ ./alembic/
-COPY alembic.ini ./
 
 # Create non-root user
 RUN groupadd -r brownie && useradd -r -g brownie brownie

@@ -203,18 +203,18 @@ except SpecificException as e:
 6. Add tests for all scenarios
 
 ### Adding a New Model
-1. Update the database package (brownie-metadata-db)
-2. Create Alembic migration
-3. Update Pydantic schemas
-4. Add proper indexes
-5. Test with sample data
+1. Update the database package (brownie-metadata-db) in its repository
+2. Create Alembic migration in the database repository
+3. Update Pydantic schemas in this API repository
+4. Test with sample data
 
 ### Database Changes
-1. Create Alembic migration for schema changes
-2. Update Pydantic schemas to match new fields
-3. Add proper indexes for performance
-4. Consider backward compatibility
-5. Test migration on sample data
+**IMPORTANT**: Database schema changes are handled in the `brownie-metadata-db` repository, not here!
+
+1. Make changes in the database repository
+2. Create Alembic migration in the database repository
+3. Update Pydantic schemas in this API repository to match new fields
+4. Test integration with updated database package
 
 ## Anti-Patterns to Avoid
 

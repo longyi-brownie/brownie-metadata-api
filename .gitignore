@@ -11,7 +11,7 @@
 secrets/
 keys/
 certs/
-certificates/
+# certificates/  # Commented out - we want to keep certificates.py but ignore actual cert files
 *.pem
 *.key
 *.crt
@@ -23,6 +23,7 @@ certificates/
 
 # Development certificates
 dev-certs/
+security/certificates/dev-certs/
 /tmp/brownie-certs/
 /tmp/pg-certs/
 

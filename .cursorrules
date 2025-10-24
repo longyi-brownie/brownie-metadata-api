@@ -1,0 +1,205 @@
+# Cursor Rules for Brownie Metadata API
+
+## Project Overview
+This is an enterprise-grade FastAPI application for metadata management with JWT authentication, multi-tenancy, and role-based access control. The codebase prioritizes security, scalability, and maintainability.
+
+## Architecture & Design Principles
+
+### Core Technologies
+- **FastAPI**: Modern Python web framework with automatic OpenAPI documentation
+- **SQLAlchemy**: ORM for database operations with async support
+- **PostgreSQL**: Primary database with SSL/mTLS authentication
+- **JWT**: Token-based authentication with Argon2 password hashing
+- **Pydantic**: Data validation and serialization
+- **Prometheus**: Metrics and monitoring
+- **Structlog**: Structured logging
+
+### Security-First Approach
+- All database connections use certificate authentication (no passwords)
+- JWT tokens with secure secrets and proper expiration
+- Argon2 password hashing (industry standard)
+- Input validation on all endpoints
+- Role-based access control with organization scoping
+- Audit logging for all operations
+
+### Multi-Tenant Architecture
+- Data isolation at organization level
+- Team-scoped permissions (admin, member, viewer)
+- User roles are team-specific, not global
+
+## Code Style & Standards
+
+### Python Standards
+- Follow PEP 8 with Black formatting
+- Use type hints for all function parameters and return values
+- Prefer explicit imports over wildcard imports
+- Use dataclasses or Pydantic models for data structures
+- Async/await for I/O operations
+
+### FastAPI Patterns
+- Use dependency injection for database sessions and authentication
+- Implement proper HTTP status codes and error responses
+- Use Pydantic models for request/response validation
+- Include comprehensive docstrings for all endpoints
+- Use router organization for endpoint grouping
+
+### Database Patterns
+- Use SQLAlchemy ORM with proper session management
+- Implement soft deletes with `deleted_at` timestamps
+- Use UUIDs for all primary keys
+- Include audit fields (`created_at`, `updated_at`, `created_by`, `updated_by`)
+- Use database transactions for multi-step operations
+
+## File Organization
+
+```
+app/
+├── main.py              # FastAPI app initialization
+├── settings.py          # Configuration management
+├── db.py               # Database connection and session management
+├── auth.py             # Authentication and authorization
+├── models.py           # SQLAlchemy model imports
+├── schemas.py          # Pydantic request/response models
+├── routers/            # API endpoint routers
+│   ├── users.py        # User management endpoints
+│   ├── organizations.py # Organization management
+│   ├── teams.py        # Team management
+│   ├── incidents.py    # Incident management
+│   ├── agent_configs.py # Agent configuration
+│   └── stats.py        # Statistics and metrics
+└── secrets.py          # Secret management (Vault integration)
+```
+
+## Development Guidelines
+
+### Adding New Endpoints
+1. Create Pydantic schemas for request/response validation
+2. Add authentication dependencies (get_current_user, require_org_access)
+3. Implement proper error handling with HTTPException
+4. Add comprehensive docstrings
+5. Include in appropriate router
+6. Add tests for all scenarios
+
+### Database Changes
+1. Create Alembic migration for schema changes
+2. Update Pydantic schemas to match new fields
+3. Add proper indexes for performance
+4. Consider backward compatibility
+5. Test migration on sample data
+
+### Security Considerations
+- Never log sensitive data (passwords, tokens, personal info)
+- Validate all input data with Pydantic
+- Use parameterized queries (SQLAlchemy handles this)
+- Implement proper CORS policies
+- Use secure defaults for all configurations
+- Regular security audits and dependency updates
+
+### Error Handling
+- Use structured error responses with consistent format
+- Log errors with appropriate context
+- Don't expose internal system details in error messages
+- Implement proper HTTP status codes
+- Use custom exception classes for business logic errors
+
+### Testing Requirements
+- Unit tests for all business logic
+- Integration tests for API endpoints
+- Database transaction tests
+- Authentication and authorization tests
+- Error handling tests
+- Performance tests for critical paths
+
+## Common Patterns
+
+### Authentication Flow
+```python
+@router.get("/protected-endpoint")
+async def protected_endpoint(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Implementation
+```
+
+### Organization Scoping
+```python
+@router.get("/org-data")
+async def get_org_data(
+    org_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Verify user belongs to organization
+    if current_user.org_id != org_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    # Implementation
+```
+
+### Database Operations
+```python
+async def create_user(user_data: UserCreate, db: Session) -> User:
+    user = User(
+        email=user_data.email,
+        username=user_data.username,
+        # ... other fields
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+```
+
+## Performance Considerations
+- Use database indexes for frequently queried fields
+- Implement pagination for list endpoints
+- Use connection pooling for database connections
+- Cache frequently accessed data (Redis integration)
+- Monitor query performance and optimize slow queries
+- Use async operations for I/O-bound tasks
+
+## Monitoring & Observability
+- Add Prometheus metrics for all endpoints
+- Use structured logging with correlation IDs
+- Implement health checks for dependencies
+- Monitor database connection pool status
+- Track authentication failures and success rates
+- Alert on error rates and response times
+
+## Deployment Considerations
+- Use environment variables for all configuration
+- Support both Docker and Kubernetes deployments
+- Implement graceful shutdown handling
+- Use health checks for load balancer integration
+- Support horizontal scaling (stateless design)
+- Implement proper logging aggregation
+
+## Code Review Checklist
+- [ ] Security implications reviewed
+- [ ] Input validation implemented
+- [ ] Error handling comprehensive
+- [ ] Tests added and passing
+- [ ] Documentation updated
+- [ ] Performance impact considered
+- [ ] Database migrations included if needed
+- [ ] Logging and metrics added
+- [ ] Backward compatibility maintained
+
+## Common Anti-Patterns to Avoid
+- Don't use raw SQL queries (use SQLAlchemy ORM)
+- Don't store passwords in plain text
+- Don't expose internal database errors to clients
+- Don't skip input validation
+- Don't use synchronous operations for I/O
+- Don't hardcode configuration values
+- Don't ignore security headers
+- Don't skip error handling
+
+## Dependencies
+- Keep dependencies up to date for security
+- Use specific version pins in production
+- Regularly audit dependencies for vulnerabilities
+- Prefer well-maintained, enterprise-grade packages
+- Document any custom patches or forks
+
+Remember: This is an enterprise product that will be sold to customers. Code quality, security, and maintainability are paramount.

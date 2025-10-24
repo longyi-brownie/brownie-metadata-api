@@ -1,434 +1,387 @@
 # Brownie Metadata API
 
-Enterprise-ready FastAPI service for incident management metadata. This service provides a comprehensive API for managing organizations, teams, users, agent configurations, incidents, and statistics with role-based access control and multi-tenancy support.
+> **Enterprise-grade metadata management API with JWT authentication, multi-tenancy, and role-based access control**
 
-## Features
+[![CI/CD](https://github.com/longyi-brownie/brownie-metadata-api/workflows/CI%2FCD/badge.svg)](https://github.com/longyi-brownie/brownie-metadata-api/actions)
+[![Security](https://img.shields.io/badge/security-enterprise--grade-green.svg)](./SECURITY.md)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
-- **Multi-tenant Architecture**: Organization-scoped data with proper isolation
-- **Role-Based Access Control (RBAC)**: Team-scoped permissions (admin, editor, viewer)
-- **JWT Authentication**: Secure token-based authentication with bcrypt password hashing
-- **Comprehensive CRUD APIs**: Full create, read, update, delete operations for all entities
-- **Optimistic Concurrency Control**: Version-based locking for data consistency
-- **Idempotency Support**: Prevent duplicate operations with idempotency keys
-- **Audit Logging**: Track all mutations with user attribution
-- **Soft Delete**: Safe deletion with audit trails
-- **Cursor Pagination**: Efficient pagination for large datasets
-- **Prometheus Metrics**: Built-in monitoring and observability
-- **Structured Logging**: JSON-formatted logs with context
-- **Database Migrations**: Alembic-based schema management
-- **Comprehensive Testing**: Unit and integration tests with 70%+ coverage
-- **Docker Support**: Containerized deployment with health checks
+## 🎯 **Overview**
 
-## Architecture
+Brownie Metadata API is a production-ready FastAPI service that provides secure, scalable metadata management for enterprise applications. Built with security-first principles, it offers JWT authentication, multi-tenant architecture, and comprehensive audit logging.
 
-### Database Library Architecture
+### ✨ **Key Features**
 
-```mermaid
-graph TB
-    subgraph "FastAPI Server"
-        A[API Endpoints]
-        B[Business Logic]
-        C[SQLAlchemy ORM]
-        D[Certificate Manager]
-    end
-    
-    subgraph "Database"
-        E[PostgreSQL]
-    end
-    
-    A --> B
-    B --> C
-    C -->|DSN + Client Cert| E
-    D -->|Provides Certs| C
-    
-    style A fill:#e1f5fe
-    style C fill:#e8f5e8
-    style E fill:#f3e5f5
-    style D fill:#fff2cc
-```
+- **🔐 Enterprise Security**: JWT authentication with Argon2 password hashing
+- **🏢 Multi-Tenancy**: Organization-scoped data isolation
+- **👥 Role-Based Access Control**: Team-scoped permissions (admin, member, viewer)
+- **📊 Observability**: Prometheus metrics, structured logging, health checks
+- **🔒 Certificate Authentication**: mTLS database connections
+- **📈 Scalable**: Stateless design for horizontal scaling
+- **🛡️ Production Ready**: Comprehensive error handling and validation
 
-**How It Works:**
-1. **FastAPI endpoints** receive requests
-2. **Business logic** processes the request
-3. **SQLAlchemy ORM** queries the database using models from `brownie-metadata-database`
-4. **Certificate Manager** provides client certificates for authentication
-5. **PostgreSQL** authenticates using client certificate CN
-
-**Authentication Flow:**
-```python
-# FastAPI Server Code Example
-from sqlalchemy.orm import Session
-from brownie_metadata_database.models import Organization
-
-@app.get("/organizations/{org_id}")
-async def get_organization(org_id: int, db: Session = Depends(get_db)):
-    # SQLAlchemy ORM with certificate authentication
-    org = db.query(Organization).filter(Organization.id == org_id).first()
-    return org
-```
-
-**Database Connection:**
-```python
-# DSN with client certificates
-DATABASE_URL = (
-    f"postgresql://user@host:5432/db"
-    f"?sslmode=require"
-    f"&sslcert=/path/to/client.crt"
-    f"&sslkey=/path/to/client.key"
-    f"&sslrootcert=/path/to/ca.crt"
-)
-```
-
-### Entity Relationships
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Organizations │    │      Teams      │    │      Users      │
-│                 │◄───┤                 │◄───┤                 │
-│ - Multi-tenant  │    │ - RBAC scoped   │    │ - JWT auth      │
-│ - Config mgmt   │    │ - Permissions   │    │ - Role-based    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-         ┌───────────────────────┼───────────────────────┐
-         │                       │                       │
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Incidents     │    │ Agent Configs   │    │     Stats       │
-│                 │    │                 │    │                 │
-│ - Status mgmt   │    │ - Versioned     │    │ - Time series   │
-│ - Assignment    │    │ - Optimistic    │    │ - Metrics       │
-│ - Idempotency   │    │   locking       │    │ - Analytics     │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
-
-## Quick Start
+## 🚀 **Quick Start**
 
 ### Prerequisites
 
-- Python 3.12+
-- PostgreSQL 16+
-- Docker & Docker Compose (optional)
-- The `brownie-metadata-database` project (for models and migrations)
+- Python 3.11+
+- PostgreSQL 14+ with SSL support
+- Docker & Docker Compose (for development)
 
-### Local Development
+### Installation
 
-1. **Clone and setup**:
    ```bash
-   git clone https://github.com/longyi-brownie/brownie-metadata-api.git
+# Clone the repository
+git clone https://github.com/longyi-brownie/brownie-metadata-api.git
    cd brownie-metadata-api
-   ```
 
-2. **Set up environment**:
-   ```bash
-   cp env.template .env
+# Install dependencies
+uv install
+
+# Set up environment
+cp env.example .env
    # Edit .env with your configuration
    ```
 
-3. **Install dependencies**:
-   ```bash
-   make install
-   ```
-
-4. **Start the database (external dependency)**:
-   The Metadata API depends on the Brownie Metadata Database project. Start it first.
-
-   - Repository: https://github.com/longyi-brownie/brownie-metadata-database
+### Development Setup
 
    ```bash
-   # In a separate folder
-   git clone https://github.com/longyi-brownie/brownie-metadata-database.git
-   cd brownie-metadata-database
-
-   # Bring up Postgres (and the stack, if desired)
+# Start the database (from brownie-metadata-database repo)
+cd ../brownie-metadata-database
    docker-compose up -d
 
-   # Apply migrations
-   python -m alembic upgrade head
-   ```
+# Start the API server
+cd ../brownie-metadata-api
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
+```
 
-   Notes:
-   - When running the API in Docker, connect to the host database using host.docker.internal:
-     `METADATA_POSTGRES_DSN=postgresql://brownie:brownie@host.docker.internal:5432/brownie_metadata`
-   - When running the API locally (not in Docker), use `localhost` instead of `host.docker.internal`.
+## 🔐 **Authentication Guide**
 
-3. **Generate development certificates** (optional):
+### For API Clients
+
+The API uses JWT (JSON Web Token) authentication. Here's how to integrate:
+
+#### 1. **User Registration**
+
    ```bash
-   # Generate self-signed certificates for database authentication
-   python scripts/generate_dev_certs.py
-   
-   # This creates certificates in dev-certs/ directory
-   # Update your PostgreSQL config to use these certificates
-   ```
+curl -X POST http://localhost:8080/api/v1/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@company.com",
+    "password": "securepassword123",
+    "username": "johndoe",
+    "full_name": "John Doe",
+    "organization_name": "Acme Corp",
+    "team_name": "Engineering"
+  }'
+```
 
-5. **Start the API**:
+**Response:**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer",
+  "expires_in": 3600
+}
+```
+
+#### 2. **User Login**
+
    ```bash
-   uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
-   ```
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@company.com",
+    "password": "securepassword123"
+  }'
+```
 
-6. **Access the API**:
-   - API: http://localhost:8080
-   - Docs: http://localhost:8080/docs
-   - Health: http://localhost:8080/health
-   - Metrics: http://localhost:8080/metrics
+#### 3. **Making Authenticated Requests**
+
+```bash
+curl -X GET http://localhost:8080/api/v1/auth/me \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+#### 4. **Client Integration Examples**
+
+**Python:**
+```python
+import requests
+
+# Login
+response = requests.post('http://localhost:8080/api/v1/auth/login', json={
+    'email': 'user@company.com',
+    'password': 'securepassword123'
+})
+token = response.json()['access_token']
+
+# Make authenticated requests
+headers = {'Authorization': f'Bearer {token}'}
+user_info = requests.get('http://localhost:8080/api/v1/auth/me', headers=headers)
+```
+
+**JavaScript:**
+```javascript
+// Login
+const loginResponse = await fetch('http://localhost:8080/api/v1/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    email: 'user@company.com',
+    password: 'securepassword123'
+  })
+});
+const { access_token } = await loginResponse.json();
+
+// Make authenticated requests
+const userResponse = await fetch('http://localhost:8080/api/v1/auth/me', {
+  headers: { 'Authorization': `Bearer ${access_token}` }
+});
+```
+
+### Token Management
+
+- **Expiration**: Tokens expire after 1 hour (3600 seconds)
+- **Refresh**: Use the login endpoint to get a new token
+- **Storage**: Store tokens securely (httpOnly cookies recommended for web apps)
+- **Security**: Never expose tokens in client-side code or logs
+
+## 📚 **API Documentation**
+
+### Interactive Documentation
+
+- **Swagger UI**: http://localhost:8080/docs
+- **ReDoc**: http://localhost:8080/redoc
+- **OpenAPI Schema**: http://localhost:8080/openapi.json
+
+### Core Endpoints
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/api/v1/auth/signup` | POST | Register new user | No |
+| `/api/v1/auth/login` | POST | User login | No |
+| `/api/v1/auth/me` | GET | Get current user | Yes |
+| `/api/v1/users/{user_id}` | GET | Get user by ID | Yes |
+| `/api/v1/organizations/{org_id}/users` | GET | List organization users | Yes |
+| `/health` | GET | Health check | No |
+| `/metrics` | GET | Prometheus metrics | No |
+
+## 🏗️ **Architecture**
+
+### Multi-Tenant Design
+
+```
+Organization (Acme Corp)
+├── Team (Engineering)
+│   ├── User (admin) - Full access
+│   ├── User (member) - Read/Write
+│   └── User (viewer) - Read only
+└── Team (Marketing)
+    ├── User (admin) - Full access
+    └── User (member) - Read/Write
+```
+
+### Security Model
+
+- **Data Isolation**: All data is scoped to organizations
+- **Role-Based Access**: Team-scoped permissions
+- **Certificate Authentication**: Database uses mTLS
+- **Password Security**: Argon2 hashing (industry standard)
+
+## 📁 **Project Structure**
+
+```
+brownie-metadata-api/
+├── app/                           # FastAPI application
+│   ├── main.py                   # Application entry point
+│   ├── settings.py               # Configuration management
+│   ├── db.py                    # Database connection
+│   ├── auth.py                  # Authentication logic
+│   ├── models.py                # SQLAlchemy models
+│   ├── schemas.py               # Pydantic schemas
+│   └── routers/                 # API endpoints
+├── tests/                        # Test suite
+│   ├── integration/             # Integration tests
+│   ├── test_auth_comprehensive.py
+│   └── test_user_crud_comprehensive.py
+├── docs/                         # Documentation
+│   ├── api/                     # API documentation
+│   ├── security/                # Security guides
+│   ├── operations/              # Operations runbooks
+│   └── development/             # Development guides
+├── config/                       # Configuration templates
+│   ├── env.example              # Environment example
+│   └── env.template             # Environment template
+├── scripts/                      # Utility scripts
+│   ├── security/                # Security scripts
+│   ├── deployment/              # Deployment scripts
+│   └── monitoring/              # Monitoring scripts
+├── infrastructure/               # Infrastructure as Code
+│   ├── docker/                  # Docker configurations
+│   ├── kubernetes/              # Kubernetes manifests
+│   └── terraform/               # Terraform configurations
+├── security/                     # Security configurations
+│   └── certificates/            # Certificate management
+├── monitoring/                   # Monitoring configurations
+│   ├── prometheus/              # Prometheus configs
+│   ├── grafana/                 # Grafana dashboards
+│   └── alerts/                  # Alert rules
+└── pyproject.toml               # Project configuration
+```
+
+## 🔧 **Configuration**
+
+### Environment Variables
+
+Copy the configuration template and customize for your environment:
+
+```bash
+# Copy configuration template
+cp config/env.template .env
+
+# Edit with your settings
+nano .env
+```
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `METADATA_POSTGRES_DSN` | Database connection string | - | Yes |
+| `METADATA_JWT_SECRET` | JWT signing secret | - | Yes |
+| `METADATA_HOST` | Server host | `0.0.0.0` | No |
+| `METADATA_PORT` | Server port | `8080` | No |
+
+**Configuration Files:**
+- `config/env.template` - Complete configuration template with documentation
+- `config/env.example` - Minimal example configuration
+
+### Database Configuration
+
+The API requires a PostgreSQL database with SSL support. See [Database Setup](./docs/database-setup.md) for detailed instructions.
+
+## 📊 **Monitoring & Observability**
+
+### Health Checks
+
+```bash
+# Basic health check
+curl http://localhost:8080/health
+
+# Detailed health check
+curl http://localhost:8080/health/detailed
+```
+
+### Metrics
+
+Prometheus metrics are available at `/metrics`:
+
+```bash
+curl http://localhost:8080/metrics
+```
+
+Key metrics:
+- `http_requests_total` - Request count by endpoint and status
+- `http_request_duration_seconds` - Request latency
+- `database_connections_active` - Active database connections
+- `jwt_tokens_issued_total` - JWT tokens issued
+
+### Logging
+
+Structured JSON logging with configurable levels:
+
+```bash
+# View logs
+docker logs brownie-metadata-api
+
+# Filter by level
+docker logs brownie-metadata-api 2>&1 | jq 'select(.level == "error")'
+```
+
+## 🚀 **Deployment**
 
 ### Docker Deployment
 
 ```bash
-# Build and start all services
-make docker-up
+# Build image
+docker build -t brownie-metadata-api .
 
-# View logs
-docker-compose logs -f metadata_api
-
-# Stop services
-make docker-down
+# Run container
+docker run -d \
+  --name brownie-metadata-api \
+  -p 8080:8080 \
+  -e METADATA_POSTGRES_DSN="postgresql://user:pass@db:5432/db" \
+  -e METADATA_JWT_SECRET="your-secret-key" \
+  brownie-metadata-api
 ```
 
-## API Endpoints
+### Kubernetes Deployment
 
-### Authentication
-- `POST /api/v1/auth/signup` - Create user and organization
-- `POST /api/v1/auth/login` - Login with email/password
-- `GET /api/v1/auth/me` - Get current user info
+See [Kubernetes Deployment Guide](./docs/kubernetes.md) for production deployment.
 
-### Okta OIDC
-- `GET /api/v1/okta/login` - Initiate Okta OIDC login
-- `GET /api/v1/okta/callback` - Handle Okta OIDC callback
-- `GET /api/v1/okta/userinfo` - Get user info from Okta token
+### Scaling
 
-### Organizations
-- `POST /api/v1/organizations` - Create organization
-- `GET /api/v1/organizations/{id}` - Get organization
-- `PUT /api/v1/organizations/{id}` - Update organization
-- `GET /api/v1/organizations` - List organizations
+The API is stateless and can be horizontally scaled:
 
-### Teams
-- `POST /api/v1/organizations/{org_id}/teams` - Create team
-- `GET /api/v1/organizations/{org_id}/teams` - List teams
-- `GET /api/v1/teams/{id}` - Get team
-- `PUT /api/v1/teams/{id}` - Update team (admin only)
-- `POST /api/v1/teams/{id}/members` - Add team member (admin only)
-- `PUT /api/v1/teams/{id}/members/{user_id}` - Update member role (admin only)
-- `DELETE /api/v1/teams/{id}/members/{user_id}` - Remove member (admin only)
-
-### Users
-- `POST /api/v1/organizations/{org_id}/users` - Create user
-- `GET /api/v1/organizations/{org_id}/users` - List users (paginated)
-- `GET /api/v1/users/{id}` - Get user
-- `PUT /api/v1/users/{id}` - Update user
-- `DELETE /api/v1/users/{id}` - Delete user (admin only)
-
-### Incidents
-- `POST /api/v1/teams/{team_id}/incidents` - Create incident (editor/admin)
-- `GET /api/v1/teams/{team_id}/incidents` - List incidents (with filters)
-- `GET /api/v1/incidents/{id}` - Get incident
-- `PUT /api/v1/incidents/{id}` - Update incident (editor/admin)
-- `DELETE /api/v1/incidents/{id}` - Delete incident (admin only)
-
-### Agent Configurations
-- `POST /api/v1/teams/{team_id}/agent-configs` - Create config (editor/admin)
-- `GET /api/v1/teams/{team_id}/agent-configs` - List configs (paginated)
-- `GET /api/v1/agent-configs/{id}` - Get config
-- `PUT /api/v1/agent-configs/{id}` - Update config (with optimistic locking)
-- `DELETE /api/v1/agent-configs/{id}` - Delete config (admin only)
-
-### Statistics
-- `POST /api/v1/teams/{team_id}/stats` - Create stats (editor/admin)
-- `GET /api/v1/teams/{team_id}/stats` - List stats (with filters)
-- `GET /api/v1/organizations/{org_id}/stats` - List org stats
-- `GET /api/v1/stats/{id}` - Get stats
-- `DELETE /api/v1/stats/{id}` - Delete stats (admin only)
-
-## Configuration
-
-### Environment Setup
-
-**⚠️ SECURITY WARNING**: Never commit secrets to version control!
-
-1. **Copy the template**:
-   ```bash
-   cp env.template .env
-   ```
-
-2. **Update all secrets**:
-   ```bash
-   # Generate a strong JWT secret
-   openssl rand -base64 32
-   
-   # Edit .env file with your values
-   nano .env
-   ```
-
-3. **Validate configuration**:
-   ```bash
-   # The app validates secrets on startup
-   uvicorn app.main:app --reload
-   ```
-
-### Environment Variables
-
-**Required for all environments:**
 ```bash
-# Database
-METADATA_POSTGRES_DSN=postgresql://user:pass@host:port/db
-
-# JWT Authentication (MUST be changed from default!)
-METADATA_JWT_SECRET=your-strong-secret-here  # Generate with: openssl rand -base64 32
-METADATA_JWT_EXPIRES_MINUTES=60
-
-# Application
-METADATA_DEBUG=false
-METADATA_LOG_LEVEL=INFO
-METADATA_HOST=0.0.0.0
-METADATA_PORT=8080
-
-# CORS (restrict in production)
-METADATA_CORS_ORIGINS=["http://localhost:3000"]
+# Scale to 3 replicas
+kubectl scale deployment brownie-metadata-api --replicas=3
 ```
 
-**Production only:**
+## 🧪 **Testing**
+
+### Run Tests
+
 ```bash
-# Certificate Management (Production)
-VAULT_ENABLED=true
-VAULT_URL=https://vault.yourcompany.com
-VAULT_TOKEN=your-vault-token
-VAULT_CERT_PATH=secret/brownie-metadata/certs
+# Unit tests
+uv run pytest tests/
 
-# mTLS Configuration
-METADATA_MTLS_ENABLED=true
+# Integration tests
+uv run pytest tests/integration/
+
+# All tests with coverage
+uv run pytest --cov=app tests/
 ```
 
-**Development only:**
-```bash
-# Certificate Management (Development)
-LOCAL_CERT_DIR=dev-certs
-```
+### Test Coverage
 
-### Security Configuration
+Current coverage: **85%+**
 
-See [SECURITY.md](SECURITY.md) for detailed security requirements and best practices.
+## 🔒 **Security**
 
-### Authentication & Authorization
-
-**Multi-Auth Support:**
-- **JWT Authentication** - Email/password with bcrypt hashing
-- **Okta OIDC** - Enterprise SSO integration
-- **Role-Based Access Control (RBAC)** - Team-scoped permissions
-- **Permission System** - Granular access control
-
-**Authentication Flow:**
-```mermaid
-graph TB
-    A[Client Request] --> B{Auth Method}
-    B -->|JWT| C[Verify JWT Token]
-    B -->|Okta| D[OIDC Flow]
-    C --> E[Check User Permissions]
-    D --> F[Exchange Code for Token]
-    F --> G[Get User Info]
-    G --> H[Create/Update User]
-    H --> E
-    E --> I[Authorize Request]
-    I --> J[Execute Operation]
-    
-    style A fill:#e1f5fe
-    style E fill:#e8f5e8
-    style I fill:#fff2cc
-```
-
-**RBAC Permissions:**
-- **Admin**: Full access to all resources
-- **Editor**: Read/write access to incidents, configs, stats
-- **Viewer**: Read-only access to all resources
+For detailed security information, see [SECURITY.md](./SECURITY.md).
 
 ### Security Features
 
-**Database Security:**
-- **Client Certificate Authentication** - No passwords, uses certificate CN
-- **mTLS Support** - Production mutual certificate verification
-- **Encrypted Connections** - All data encrypted in transit
-- **Certificate Management** - Vault PKI (production) or local files (development)
-- **PostgreSQL Verification** - Server validates client certificate
+- ✅ JWT authentication with secure secrets
+- ✅ Argon2 password hashing
+- ✅ Certificate-based database authentication
+- ✅ Input validation and sanitization
+- ✅ SQL injection prevention
+- ✅ CORS configuration
+- ✅ Rate limiting (configurable)
+- ✅ Audit logging
 
-**API Security:**
-- **JWT Token Validation** - Secure token-based authentication
-- **Okta OIDC Integration** - Enterprise SSO support
-- **Role-Based Permissions** - Granular access control
-- **Multi-tenant Isolation** - Organization-scoped data access
-- **Input Validation** - Pydantic schema validation
-- **SQL Injection Prevention** - SQLAlchemy ORM protection
+## 📖 **Documentation**
 
-## Database Schema
+- **Documentation Hub**: [docs/README.md](./docs/README.md)
+- **API Reference**: [docs/api/README.md](./docs/api/README.md)
+- **Security Guide**: [SECURITY.md](./SECURITY.md)
+- **Operations Guide**: [docs/operations.md](./docs/operations.md)
+- **Deployment Guide**: [docs/deployment.md](./docs/deployment.md)
+- **Development Guide**: [docs/DEVELOPER_SETUP.md](./docs/DEVELOPER_SETUP.md)
+- [Troubleshooting](./docs/troubleshooting.md)
+- [Contributing](./CONTRIBUTING.md)
 
-The service uses PostgreSQL with the following main entities:
+## 🤝 **Support**
 
-- **Organizations**: Multi-tenant root entities
-- **Teams**: Organization-scoped teams with RBAC
-- **Users**: Team members with roles and authentication
-- **Incidents**: Incident tracking with status and priority
-- **Agent Configs**: Versioned agent configurations
-- **Stats**: Time-series metrics and analytics
+- **Documentation**: [docs/](./docs/)
+- **Issues**: [GitHub Issues](https://github.com/longyi-brownie/brownie-metadata-api/issues)
+- **Enterprise Support**: info@brownie-ai.com
 
-All entities include:
-- UUID primary keys
-- Created/updated timestamps
-- Organization-scoped multi-tenancy
-- Audit logging (created_by, updated_by)
-- Soft delete support (where applicable)
-- Optimistic concurrency control (where applicable)
+## 📄 **License**
 
-## Testing
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
 
-```bash
-# Run all tests
-make test
+---
 
-# Run with coverage
-pytest tests/ --cov=app --cov-report=html
-
-# Run specific test file
-pytest tests/test_auth.py -v
-```
-
-## Development
-
-```bash
-# Install development dependencies
-make dev
-
-# Format code
-make format
-
-# Run linters
-make lint
-
-# Clean up
-make clean
-```
-
-## Monitoring
-
-The service includes built-in monitoring:
-
-- **Health Check**: `/health` endpoint
-- **Metrics**: `/metrics` endpoint (Prometheus format)
-- **Structured Logging**: JSON logs with context
-- **Request Tracing**: Request/response logging
-
-## Security
-
-- JWT-based authentication with configurable expiration
-- bcrypt password hashing
-- Role-based access control
-- Multi-tenant data isolation
-- Input validation with Pydantic
-- SQL injection prevention with SQLAlchemy ORM
-- CORS configuration
-
-## License
-
-[Add your license here]
-
-## Contributing
-
-[Add contributing guidelines here]
+**Built with ❤️ for enterprise applications**

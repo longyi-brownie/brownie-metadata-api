@@ -28,8 +28,8 @@ dependencies = [
     "pytest-cov>=4.1.0",
     "testcontainers>=3.7.0",
     "pytest-mock>=3.12.0",
-    "brownie-metadata-db",
     "argon2-cffi>=25.1.0",
+    "brownie-metadata-db==0.1.0",
 ]
 
 [project.optional-dependencies]
@@ -85,6 +85,3 @@ markers = [
     "integration: Integration tests",
     "e2e: End-to-end tests",
 ]
-
-[tool.uv.sources]
-brownie-metadata-db = { path = "../brownie-metadata-database", editable = true }

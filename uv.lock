@@ -208,30 +208,30 @@ wheels = [
 
 [[package]]
 name = "boto3"
-version = "1.40.57"
+version = "1.40.58"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore" },
     { name = "jmespath" },
     { name = "s3transfer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b3/26/b0ed74e73b58f7e1e39cd6645e14e5c2a9a2bc121f67ebd8bde3d74a5bfe/boto3-1.40.57.tar.gz", hash = "sha256:717605170cb167e07462b7f033b26bc9c0fee34b78b5eac52edcd6149915e23f", size = 111536, upload-time = "2025-10-22T20:27:18.797Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/de/87/7f57ac8a1cd532a3e337765d6837c8a5ac2d9d4c5e525d3aca876861f82e/boto3-1.40.58.tar.gz", hash = "sha256:5a99c0bd2e282af4afde1af10d8838b397120722b6b685f0c0fa6b8cac351304", size = 111504, upload-time = "2025-10-23T20:05:21.152Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/cc/a5/5c2437915135b6966bdefdbdc110bc58b4a8852cf1496cf49431976fff64/boto3-1.40.57-py3-none-any.whl", hash = "sha256:4ceeac741b04cd5d9193c85d1707597a30f7482682733437454408ea755ee151", size = 139323, upload-time = "2025-10-22T20:27:16.37Z" },
+    { url = "https://files.pythonhosted.org/packages/38/3a/1acfc045dbaa50a1c05b86b7e5102abbac22aa297469826f82f492eacef4/boto3-1.40.58-py3-none-any.whl", hash = "sha256:951515c1ea0ae9e99e56c3b6f408a2f59e1b57fab4d96dab737e73956f729177", size = 139324, upload-time = "2025-10-23T20:05:18.579Z" },
 ]
 
 [[package]]
 name = "botocore"
-version = "1.40.57"
+version = "1.40.58"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jmespath" },
     { name = "python-dateutil" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/09/cb/7ba66090c6c4b31551a1c42feafa77a0b686ab9d18ee17436fa413b0e854/botocore-1.40.57.tar.gz", hash = "sha256:39bb0570e10eb7a5d518974865aeebafe275498c8f132b23e3021b957babaf8a", size = 14466171, upload-time = "2025-10-22T20:27:07.121Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b4/82/26c7528126ba90c82866a35f1fbde5a5ada8f8a523822304c5bcc6a4d6c3/botocore-1.40.58.tar.gz", hash = "sha256:cf2de7f5538f23c8067408a984ed32221e8b196ce98e66945a479d06b2663c33", size = 14464507, upload-time = "2025-10-23T20:05:08.663Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5e/5a/cc3df0b192c958e0336d44fad820fff7375ba23e0037620ea675da8ef2dd/botocore-1.40.57-py3-none-any.whl", hash = "sha256:95dfd35e0863c3e33d458b0e74eb5a82d73521347c25651e1a0e18cf921ee010", size = 14134566, upload-time = "2025-10-22T20:27:03.253Z" },
+    { url = "https://files.pythonhosted.org/packages/d2/e8/e903eb6a96862ffb0ea96fdaca3db17346cde35869723f4dd9a17834b9da/botocore-1.40.58-py3-none-any.whl", hash = "sha256:2571ca3aec8150e1b5a597794da6fd06284de72f29d3ea806804b798755f2e5a", size = 14135190, upload-time = "2025-10-23T20:05:04.55Z" },
 ]
 
 [[package]]
@@ -273,7 +273,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.12.0" },
     { name = "argon2-cffi", specifier = ">=25.1.0" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
-    { name = "brownie-metadata-db", editable = "../brownie-metadata-database" },
+    { name = "brownie-metadata-db", specifier = "==0.1.0" },
     { name = "fastapi", specifier = ">=0.104.0" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=6.0.0" },
     { name = "httpx", specifier = ">=0.25.0" },
@@ -299,7 +299,7 @@ provides-extras = ["dev"]
 [[package]]
 name = "brownie-metadata-db"
 version = "0.1.0"
-source = { editable = "../brownie-metadata-database" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "alembic" },
     { name = "azure-storage-blob" },
@@ -318,36 +318,10 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "structlog" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "alembic", specifier = ">=1.13.0" },
-    { name = "azure-storage-blob", specifier = ">=12.19.0" },
-    { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
-    { name = "boto3", specifier = ">=1.34.0" },
-    { name = "click", specifier = ">=8.0.0" },
-    { name = "croniter", specifier = ">=2.0.0" },
-    { name = "google-cloud-storage", specifier = ">=2.10.0" },
-    { name = "hvac", marker = "extra == 'vault'", specifier = ">=1.0.0" },
-    { name = "isort", marker = "extra == 'dev'", specifier = ">=5.12.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.7.0" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.5.0" },
-    { name = "prometheus-client", specifier = ">=0.19.0" },
-    { name = "psycopg", extras = ["binary"], specifier = ">=3.2.1" },
-    { name = "psycopg2-binary", specifier = ">=2.9.0" },
-    { name = "pydantic", specifier = ">=2.5.0" },
-    { name = "pydantic-settings", specifier = ">=2.1.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.4.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
-    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.9.0" },
-    { name = "pyyaml", specifier = ">=6.0.0" },
-    { name = "redis", specifier = ">=5.0.1" },
-    { name = "schedule", specifier = ">=1.2.0" },
-    { name = "sqlalchemy", specifier = ">=2.0.23" },
-    { name = "structlog", specifier = ">=23.2.0" },
+sdist = { url = "https://files.pythonhosted.org/packages/ce/a4/1713d7b7360890bdf8e0306f638847b0aa08b668cd0f4209404b255fcf39/brownie_metadata_db-0.1.0.tar.gz", hash = "sha256:014f3aafdeb9f387ac5fe161d42235095a0ad160deaaa9d59b1148662fe604f4", size = 28988, upload-time = "2025-10-23T06:00:55.45Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ba/bc/f8184ccc5911f6b1150b30b45170ea876e36f69860d4c830186290631b77/brownie_metadata_db-0.1.0-py3-none-any.whl", hash = "sha256:99170f067e9a829770659ab187e0c6c03d3cf0d5b1119f1b60837992aba75cf0", size = 41184, upload-time = "2025-10-23T06:00:53.947Z" },
 ]
-provides-extras = ["dev", "vault"]
 
 [[package]]
 name = "cachetools"

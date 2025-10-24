@@ -56,6 +56,10 @@ jobs:
     
     - name: Set up test database
       run: |
+        # Clean up any existing test database and user
+        PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS test_brownie_metadata;" || true
+        PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP USER IF EXISTS test_user;" || true
+        
         # Create test user and database
         PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE USER test_user WITH PASSWORD 'test_password';"
         PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE test_brownie_metadata OWNER test_user;"
@@ -170,6 +174,10 @@ jobs:
     
     - name: Set up test database with SSL
       run: |
+        # Clean up any existing test database and user
+        PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS test_brownie_metadata;" || true
+        PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP USER IF EXISTS test_user;" || true
+        
         # Create test user and database
         PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE USER test_user WITH PASSWORD 'test_password';"
         PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE test_brownie_metadata OWNER test_user;"

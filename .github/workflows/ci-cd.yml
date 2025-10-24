@@ -45,6 +45,7 @@ jobs:
     - name: Install dependencies
       run: |
         uv sync --dev
+        uv add --dev ruff mypy bandit safety
     
     - name: Generate test certificates
       run: |
@@ -163,6 +164,7 @@ jobs:
     - name: Install dependencies
       run: |
         uv sync --dev
+        uv add --dev ruff mypy bandit safety
     
     - name: Generate test certificates
       run: |

@@ -204,7 +204,7 @@ except SpecificException as e:
 
 ### Adding a New Model
 1. Update the database package (brownie-metadata-db) in its repository
-2. Create Alembic migration in the database repository
+2. Create database migration in the database repository
 3. Update Pydantic schemas in this API repository
 4. Test with sample data
 
@@ -212,7 +212,7 @@ except SpecificException as e:
 **IMPORTANT**: Database schema changes are handled in the `brownie-metadata-db` repository, not here!
 
 1. Make changes in the database repository
-2. Create Alembic migration in the database repository
+2. Create database migration in the database repository
 3. Update Pydantic schemas in this API repository to match new fields
 4. Test integration with updated database package
 

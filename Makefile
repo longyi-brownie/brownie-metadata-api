@@ -62,15 +62,6 @@ docker-up:
 docker-down:
 	docker-compose down
 
-# Database commands
-migrate:
-	@echo "Database migrations are handled by the brownie-metadata-db package"
-	@echo "Run migrations in the database repository, not here"
-
-migrate-create:
-	@echo "Database migrations are handled by the brownie-metadata-db package"
-	@echo "Create migrations in the database repository, not here"
-
 # Seed database (placeholder)
 seed:
 	@echo "Seeding database with test data..."

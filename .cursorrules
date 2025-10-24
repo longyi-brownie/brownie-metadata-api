@@ -36,6 +36,22 @@ This is an enterprise-grade FastAPI application for metadata management with JWT
 - Use dataclasses or Pydantic models for data structures
 - Async/await for I/O operations
 
+### Code Quality Tools (REQUIRED BEFORE COMMIT)
+- **Ruff**: Fast Python linter and formatter (replaces black, isort, flake8)
+- **MyPy**: Static type checking
+- **Bandit**: Security linting
+- **Safety**: Dependency vulnerability scanning
+
+**Pre-commit workflow:**
+```bash
+# Run all linting tools before committing
+uv run ruff check . --fix
+uv run ruff format .
+uv run mypy app/
+uv run bandit -r app/
+uv run safety check
+```
+
 ### FastAPI Patterns
 - Use dependency injection for database sessions and authentication
 - Implement proper HTTP status codes and error responses

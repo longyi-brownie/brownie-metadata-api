@@ -39,9 +39,27 @@ git clone https://github.com/longyi-brownie/brownie-metadata-api.git
 uv install
 
 # Set up environment
-cp env.example .env
+cp config/env.template .env
    # Edit .env with your configuration
-   ```
+
+### Code Quality Tools
+
+**Before committing code, always run:**
+
+```bash
+# Lint and auto-fix
+uv run ruff check . --fix
+
+# Format code
+uv run ruff format .
+
+# Type checking
+uv run mypy app/
+
+# Security checks
+uv run bandit -r app/
+uv run safety check
+```
 
 ### Development Setup
 
@@ -365,7 +383,7 @@ For detailed security information, see [SECURITY.md](./SECURITY.md).
 
 - **Documentation Hub**: [docs/README.md](./docs/README.md)
 - **API Reference**: [docs/api/README.md](./docs/api/README.md)
-- **Security Guide**: [SECURITY.md](./SECURITY.md)
+- **Security Guide**: [docs/SECURITY.md](./docs/SECURITY.md)
 - **Operations Guide**: [docs/operations.md](./docs/operations.md)
 - **Deployment Guide**: [docs/deployment.md](./docs/deployment.md)
 - **Development Guide**: [docs/DEVELOPER_SETUP.md](./docs/DEVELOPER_SETUP.md)

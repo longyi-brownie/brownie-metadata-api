@@ -32,6 +32,41 @@ This is an **enterprise-grade FastAPI application** for metadata management that
 5. **Error Handling**: Implement comprehensive error handling with proper HTTP status codes
 6. **Logging**: Add structured logging for audit trails
 7. **Testing**: Include tests for all new functionality
+8. **Code Quality**: Run linting tools before committing code
+
+### Code Quality Tools (MANDATORY BEFORE COMMIT)
+
+**Always run these tools before committing any code:**
+
+```bash
+# 1. Lint and auto-fix code issues
+uv run ruff check . --fix
+
+# 2. Format code
+uv run ruff format .
+
+# 3. Type checking
+uv run mypy app/
+
+# 4. Security linting
+uv run bandit -r app/
+
+# 5. Dependency vulnerability check
+uv run safety check
+```
+
+**Tools Overview:**
+- **Ruff**: Fast Python linter and formatter (replaces black, isort, flake8)
+- **MyPy**: Static type checking for type safety
+- **Bandit**: Security linting to catch common security issues
+- **Safety**: Dependency vulnerability scanning
+
+**Why This Matters:**
+- **Enterprise Quality**: Customers expect high-quality, secure code
+- **CI/CD Pipeline**: GitHub Actions will fail if linting errors exist
+- **Security**: Bandit catches common security vulnerabilities
+- **Maintainability**: Clean, consistent code is easier to maintain
+- **Type Safety**: MyPy prevents runtime type errors
 
 ### Code Patterns
 

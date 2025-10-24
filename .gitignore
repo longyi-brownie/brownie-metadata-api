@@ -23,7 +23,6 @@ certs/
 
 # Development certificates
 dev-certs/
-security/certificates/dev-certs/
 /tmp/brownie-certs/
 /tmp/pg-certs/
 

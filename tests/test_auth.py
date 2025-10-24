@@ -1,6 +1,5 @@
 """Test authentication endpoints."""
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -8,7 +7,7 @@ def test_signup_success(client: TestClient, test_user_data):
     """Test successful user signup."""
     response = client.post("/api/v1/auth/signup", json=test_user_data)
     assert response.status_code == 200
-    
+
     data = response.json()
     assert "access_token" in data
     assert data["token_type"] == "bearer"
@@ -19,7 +18,7 @@ def test_signup_duplicate_email(client: TestClient, test_user_data):
     """Test signup with duplicate email fails."""
     # First signup
     client.post("/api/v1/auth/signup", json=test_user_data)
-    
+
     # Second signup with same email
     response = client.post("/api/v1/auth/signup", json=test_user_data)
     assert response.status_code == 400
@@ -30,7 +29,7 @@ def test_login_success(client: TestClient, test_user_data):
     """Test successful login."""
     # First signup
     client.post("/api/v1/auth/signup", json=test_user_data)
-    
+
     # Then login
     login_data = {
         "email": test_user_data["email"],
@@ -38,7 +37,7 @@ def test_login_success(client: TestClient, test_user_data):
     }
     response = client.post("/api/v1/auth/login", json=login_data)
     assert response.status_code == 200
-    
+
     data = response.json()
     assert "access_token" in data
     assert data["token_type"] == "bearer"
@@ -49,7 +48,7 @@ def test_login_invalid_credentials(client: TestClient, test_user_data):
     """Test login with invalid credentials fails."""
     # First signup
     client.post("/api/v1/auth/signup", json=test_user_data)
-    
+
     # Login with wrong password
     login_data = {
         "email": test_user_data["email"],
@@ -76,12 +75,12 @@ def test_get_current_user_info(client: TestClient, test_user_data):
     # Signup and get token
     signup_response = client.post("/api/v1/auth/signup", json=test_user_data)
     token = signup_response.json()["access_token"]
-    
+
     # Get user info
     headers = {"Authorization": f"Bearer {token}"}
     response = client.get("/api/v1/auth/me", headers=headers)
     assert response.status_code == 200
-    
+
     data = response.json()
     assert data["email"] == test_user_data["email"]
     assert data["username"] == test_user_data["username"]
@@ -109,7 +108,7 @@ def test_okta_endpoints_not_implemented(client: TestClient):
     response = client.get("/api/v1/auth/okta/login")
     assert response.status_code == 501
     assert "not implemented" in response.json()["detail"]
-    
+
     response = client.get("/api/v1/auth/okta/callback")
     assert response.status_code == 501
     assert "not implemented" in response.json()["detail"]

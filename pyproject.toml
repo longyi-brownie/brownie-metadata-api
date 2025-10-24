@@ -100,3 +100,11 @@ markers = [
     "integration: Integration tests",
     "e2e: End-to-end tests",
 ]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.8.6",
+    "mypy>=1.18.2",
+    "ruff>=0.14.2",
+    "safety>=3.6.2",
+]

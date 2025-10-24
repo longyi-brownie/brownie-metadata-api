@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """Debug authentication issues."""
 
+
 import requests
-import json
+
 
 def test_auth_debug():
     """Test authentication with detailed debugging."""
     base_url = "http://localhost:8080"
-    
+
     print("=== Testing Authentication Debug ===")
-    
+
     # Test 1: Health check
     print("\n1. Testing health endpoint...")
     try:
@@ -21,7 +22,7 @@ def test_auth_debug():
             print(f"   Error: {response.text}")
     except Exception as e:
         print(f"   Error: {e}")
-    
+
     # Test 2: Login with detailed error info
     print("\n2. Testing login endpoint...")
     try:
@@ -34,17 +35,17 @@ def test_auth_debug():
         print(f"   Response: {response.text}")
     except Exception as e:
         print(f"   Error: {e}")
-    
+
     # Test 3: Check if user exists in database
     print("\n3. Checking user in database...")
     import subprocess
     try:
         result = subprocess.run([
-            "docker", "exec", "brownie-metadata-postgres", 
+            "docker", "exec", "brownie-metadata-postgres",
             "psql", "-U", "brownie-fastapi-server", "-d", "brownie_metadata",
             "-c", "SELECT id, email, username, is_active, password_hash FROM users WHERE email = 'test@example.com';"
         ], capture_output=True, text=True)
-        print(f"   Database query result:")
+        print("   Database query result:")
         print(f"   {result.stdout}")
         if result.stderr:
             print(f"   Error: {result.stderr}")

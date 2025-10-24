@@ -1,25 +1,25 @@
 """Main FastAPI application."""
 
-import structlog
 from contextlib import asynccontextmanager
 from datetime import datetime
 
-from fastapi import FastAPI, HTTPException
+import structlog
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from starlette.responses import Response
 
 from .auth import router as auth_router
+from .db import close_db, init_db
 from .okta_auth import okta_router
-from .db import init_db, close_db
 from .routers import (
-    organizations,
-    teams,
-    users,
     agent_configs,
     incidents,
+    organizations,
     stats,
+    teams,
+    users,
 )
 from .schemas import HealthResponse
 from .settings import settings
@@ -97,24 +97,24 @@ app.add_middleware(
 async def metrics_middleware(request, call_next):
     """Middleware for collecting metrics and logging."""
     start_time = datetime.utcnow()
-    
+
     response = await call_next(request)
-    
+
     # Calculate duration
     duration = (datetime.utcnow() - start_time).total_seconds()
-    
+
     # Record metrics
     REQUEST_COUNT.labels(
         method=request.method,
         endpoint=request.url.path,
         status_code=response.status_code
     ).inc()
-    
+
     REQUEST_DURATION.labels(
         method=request.method,
         endpoint=request.url.path
     ).observe(duration)
-    
+
     # Log request
     logger.info(
         "HTTP request",
@@ -124,7 +124,7 @@ async def metrics_middleware(request, call_next):
         duration=duration,
         client_ip=request.client.host if request.client else None,
     )
-    
+
     return response
 
 
@@ -134,15 +134,16 @@ async def health_check():
     """Health check endpoint."""
     try:
         # Test database connection
-        from .db import engine
         from sqlalchemy import text
+
+        from .db import engine
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         db_status = "healthy"
     except Exception as e:
         logger.error("Database health check failed", error=str(e))
         db_status = "unhealthy"
-    
+
     return HealthResponse(
         status="healthy" if db_status == "healthy" else "unhealthy",
         timestamp=datetime.utcnow(),
@@ -180,7 +181,7 @@ async def global_exception_handler(request, exc):
         method=request.method,
         exc_info=True,
     )
-    
+
     return JSONResponse(
         status_code=500,
         content={

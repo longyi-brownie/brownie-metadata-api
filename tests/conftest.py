@@ -1,9 +1,6 @@
 """Test configuration and fixtures."""
 
 import asyncio
-import os
-import tempfile
-from typing import AsyncGenerator, Generator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,10 +8,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from testcontainers.postgres import PostgresContainer
 
+from app.db import get_db
 from app.main import app
 from app.models import Base
-from app.db import get_db
-from app.settings import settings
 
 
 @pytest.fixture(scope="session")
@@ -65,12 +61,12 @@ def client(test_db_session):
             yield test_db_session
         finally:
             pass
-    
+
     app.dependency_overrides[get_db] = override_get_db
-    
+
     with TestClient(app) as test_client:
         yield test_client
-    
+
     app.dependency_overrides.clear()
 
 

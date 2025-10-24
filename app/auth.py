@@ -2,18 +2,17 @@
 
 import uuid
 from datetime import datetime, timedelta
-from typing import Optional, Set
 
 import structlog
-from fastapi import Depends, HTTPException, status, APIRouter
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from .db import get_db
-from .models import User, UserRole, Organization, Team
-from .schemas import UserClaims, LoginRequest, SignupRequest, TokenResponse
+from .models import Organization, Team, User, UserRole
+from .schemas import LoginRequest, SignupRequest, TokenResponse, UserClaims
 from .settings import settings
 
 logger = structlog.get_logger(__name__)
@@ -38,20 +37,20 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """Create a JWT access token."""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=settings.jwt_expires_minutes)
-    
+
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
     return encoded_jwt
 
 
-def verify_token(token: str) -> Optional[UserClaims]:
+def verify_token(token: str) -> UserClaims | None:
     """Verify and decode a JWT token."""
     try:
         payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
@@ -59,10 +58,10 @@ def verify_token(token: str) -> Optional[UserClaims]:
         org_id: str = payload.get("org_id")
         email: str = payload.get("email")
         roles: list = payload.get("roles", [])
-        
+
         if user_id is None or org_id is None or email is None:
             return None
-            
+
         return UserClaims(
             user_id=uuid.UUID(user_id),
             org_id=uuid.UUID(org_id),
@@ -84,26 +83,26 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
     try:
         token = credentials.credentials
         claims = verify_token(token)
         if claims is None:
             raise credentials_exception
-            
+
         user = db.query(User).filter(
             User.id == claims.user_id,
-            User.is_active == True,
+            User.is_active,
             User.deleted_at.is_(None)
         ).first()
-        
+
         if user is None:
             raise credentials_exception
-            
+
         return user
     except Exception as e:
         logger.warning("Authentication failed", error=str(e))
-        raise credentials_exception
+        raise credentials_exception from e
 
 
 async def get_current_user_claims(
@@ -115,7 +114,7 @@ async def get_current_user_claims(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
     try:
         token = credentials.credentials
         claims = verify_token(token)
@@ -124,46 +123,46 @@ async def get_current_user_claims(
         return claims
     except Exception as e:
         logger.warning("Token validation failed", error=str(e))
-        raise credentials_exception
+        raise credentials_exception from e
 
 
-def require_team_role(team_id: uuid.UUID, allowed_roles: Set[str]) -> callable:
+def require_team_role(team_id: uuid.UUID, allowed_roles: set[str]) -> callable:
     """Create a dependency that requires specific team roles."""
-    
+
     async def check_team_role(
         current_user: User = Depends(get_current_user),
         db: Session = Depends(get_db)
     ) -> User:
         """Check if user has required role in the team."""
-        
+
         # Check if user belongs to the team
         if current_user.team_id != team_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="User does not belong to this team"
             )
-        
+
         # Check if user has required role
         if current_user.role.value not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"User role '{current_user.role.value}' not in allowed roles: {allowed_roles}"
             )
-        
+
         return current_user
-    
+
     return check_team_role
 
 
 def require_permission(permission: str) -> callable:
     """Create a dependency that requires a specific permission."""
-    
+
     async def check_permission(
         current_user: User = Depends(get_current_user),
         db: Session = Depends(get_db)
     ) -> User:
         """Check if user has the required permission."""
-        
+
         # Get user's team to check permissions
         team = db.query(Team).filter(Team.id == current_user.team_id).first()
         if not team:
@@ -171,22 +170,22 @@ def require_permission(permission: str) -> callable:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="User team not found"
             )
-        
+
         # Check role-based permissions
         user_permissions = _get_role_permissions(current_user.role)
-        
+
         # Check team-specific permissions
         team_permissions = team.permissions or {}
         user_permissions.update(team_permissions.get(str(current_user.id), {}))
-        
+
         if permission not in user_permissions or not user_permissions[permission]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Permission '{permission}' required"
             )
-        
+
         return current_user
-    
+
     return check_permission
 
 
@@ -227,50 +226,50 @@ def _get_role_permissions(role: UserRole) -> dict:
             "manage_stats": False,
         }
     }
-    
+
     return permissions.get(role.value, {})
 
 
 def require_org_access(org_id: uuid.UUID) -> callable:
     """Create a dependency that requires organization access."""
-    
+
     async def check_org_access(
         current_user: User = Depends(get_current_user)
     ) -> User:
         """Check if user belongs to the organization."""
-        
+
         if current_user.org_id != org_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="User does not belong to this organization"
             )
-        
+
         return current_user
-    
+
     return check_org_access
 
 
-def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
+def authenticate_user(db: Session, email: str, password: str) -> User | None:
     """Authenticate a user with email and password."""
     user = db.query(User).filter(
         User.email == email,
-        User.is_active == True,
+        User.is_active,
         User.deleted_at.is_(None)
     ).first()
-    
+
     if not user:
         return None
-    
+
     if not user.password_hash or not verify_password(password, user.password_hash):
         return None
-    
+
     return user
 
 
 def create_user_token(user: User) -> str:
     """Create a JWT token for a user."""
     roles = [user.role.value] if user.role else []
-    
+
     token_data = {
         "sub": str(user.id),
         "org_id": str(user.org_id),
@@ -278,7 +277,7 @@ def create_user_token(user: User) -> str:
         "roles": roles,
         "iat": datetime.utcnow(),
     }
-    
+
     return create_access_token(token_data)
 
 
@@ -292,7 +291,7 @@ async def login(login_data: LoginRequest, db: Session = Depends(get_db)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
         )
-    
+
     access_token = create_user_token(user)
     return TokenResponse(
         access_token=access_token,
@@ -304,7 +303,7 @@ async def login(login_data: LoginRequest, db: Session = Depends(get_db)):
 @router.post("/signup", response_model=TokenResponse)
 async def signup(signup_data: SignupRequest, db: Session = Depends(get_db)):
     """Sign up a new user and create organization/team."""
-    
+
     # Check if user already exists
     existing_user = db.query(User).filter(User.email == signup_data.email).first()
     if existing_user:
@@ -312,7 +311,7 @@ async def signup(signup_data: SignupRequest, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User with this email already exists"
         )
-    
+
     # Create organization
     org_slug = signup_data.organization_name.lower().replace(" ", "-")
     organization = Organization(
@@ -324,7 +323,7 @@ async def signup(signup_data: SignupRequest, db: Session = Depends(get_db)):
     )
     db.add(organization)
     db.flush()  # Get the org ID
-    
+
     # Create team
     team_slug = signup_data.team_name.lower().replace(" ", "-")
     team = Team(
@@ -336,7 +335,7 @@ async def signup(signup_data: SignupRequest, db: Session = Depends(get_db)):
     )
     db.add(team)
     db.flush()  # Get the team ID
-    
+
     # Create user
     user = User(
         email=signup_data.email,
@@ -352,7 +351,7 @@ async def signup(signup_data: SignupRequest, db: Session = Depends(get_db)):
     )
     db.add(user)
     db.commit()
-    
+
     access_token = create_user_token(user)
     return TokenResponse(
         access_token=access_token,

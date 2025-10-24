@@ -1,13 +1,12 @@
 """Organization management endpoints."""
 
 import uuid
-from typing import List
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_user, require_org_access
+from ..auth import get_current_user
 from ..db import get_db
 from ..models import Organization, User
 from ..schemas import OrganizationCreate, OrganizationResponse, OrganizationUpdate
@@ -23,18 +22,18 @@ async def create_organization(
     db: Session = Depends(get_db)
 ):
     """Create a new organization."""
-    
+
     # Check if organization with same name/slug exists
     existing_org = db.query(Organization).filter(
         (Organization.name == org_data.name) | (Organization.slug == org_data.slug)
     ).first()
-    
+
     if existing_org:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Organization with this name or slug already exists"
         )
-    
+
     # Create organization
     organization = Organization(
         name=org_data.name,
@@ -44,18 +43,18 @@ async def create_organization(
         max_teams=org_data.max_teams,
         max_users_per_team=org_data.max_users_per_team,
     )
-    
+
     db.add(organization)
     db.commit()
     db.refresh(organization)
-    
+
     logger.info(
         "Organization created",
         organization_id=organization.id,
         name=organization.name,
         created_by=current_user.id
     )
-    
+
     return organization
 
 
@@ -66,21 +65,21 @@ async def get_organization(
     db: Session = Depends(get_db)
 ):
     """Get organization by ID."""
-    
+
     # Check organization access
     if current_user.org_id != org_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to this organization"
         )
-    
+
     organization = db.query(Organization).filter(Organization.id == org_id).first()
     if not organization:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Organization not found"
         )
-    
+
     return organization
 
 
@@ -92,49 +91,49 @@ async def update_organization(
     db: Session = Depends(get_db)
 ):
     """Update organization."""
-    
+
     # Check organization access
     if current_user.org_id != org_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to this organization"
         )
-    
+
     organization = db.query(Organization).filter(Organization.id == org_id).first()
     if not organization:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Organization not found"
         )
-    
+
     # Update fields
     update_data = org_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(organization, field, value)
-    
+
     db.commit()
     db.refresh(organization)
-    
+
     logger.info(
         "Organization updated",
         organization_id=organization.id,
         updated_by=current_user.id
     )
-    
+
     return organization
 
 
-@router.get("/organizations", response_model=List[OrganizationResponse])
+@router.get("/organizations", response_model=list[OrganizationResponse])
 async def list_organizations(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List organizations accessible to current user."""
-    
+
     # For now, users can only see their own organization
     # In a multi-org setup, this would be more complex
     organizations = db.query(Organization).filter(
         Organization.id == current_user.org_id
     ).all()
-    
+
     return organizations

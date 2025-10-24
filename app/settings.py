@@ -1,22 +1,21 @@
 """Application settings using Pydantic BaseSettings."""
 
 import os
-import secrets
-from typing import List, Optional
-from pydantic import Field, field_validator, AliasChoices
+
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     """Application settings with environment variable support."""
-    
+
     # Database
     postgres_dsn: str = Field(
         default="postgresql://brownie-fastapi-server@localhost:5432/brownie_metadata?sslmode=require&sslcert=../brownie-metadata-database/dev-certs/client.crt&sslkey=../brownie-metadata-database/dev-certs/client.key&sslrootcert=../brownie-metadata-database/dev-certs/ca.crt",
         alias="METADATA_POSTGRES_DSN",
         description="PostgreSQL connection string"
     )
-    
+
     # JWT Authentication
     jwt_secret: str = Field(
         default="CHANGE_THIS_TO_A_STRONG_SECRET_AT_LEAST_32_CHARS",
@@ -33,7 +32,7 @@ class Settings(BaseSettings):
         alias="METADATA_JWT_ALGORITHM",
         description="JWT signing algorithm"
     )
-    
+
     # Application
     debug: bool = Field(
         default=False,
@@ -55,31 +54,31 @@ class Settings(BaseSettings):
         alias="METADATA_PORT",
         description="Port to bind the server"
     )
-    
+
     # CORS
-    cors_origins: List[str] = Field(
+    cors_origins: list[str] = Field(
         default=["http://localhost:3000", "http://localhost:8080"],
         alias="METADATA_CORS_ORIGINS",
         description="Allowed CORS origins"
     )
-    
+
     # Okta OIDC (stubs for v1)
-    okta_domain: Optional[str] = Field(
+    okta_domain: str | None = Field(
         default=None,
         alias="METADATA_OKTA_DOMAIN",
         description="Okta domain for OIDC"
     )
-    okta_client_id: Optional[str] = Field(
+    okta_client_id: str | None = Field(
         default=None,
         alias="METADATA_OKTA_CLIENT_ID",
         description="Okta client ID"
     )
-    okta_client_secret: Optional[str] = Field(
+    okta_client_secret: str | None = Field(
         default=None,
         alias="METADATA_OKTA_CLIENT_SECRET",
         description="Okta client secret"
     )
-    
+
     @field_validator('jwt_secret')
     @classmethod
     def validate_jwt_secret(cls, v):
@@ -92,7 +91,7 @@ class Settings(BaseSettings):
         if len(v) < 32:
             raise ValueError("JWT_SECRET must be at least 32 characters long")
         return v
-    
+
     @field_validator('postgres_dsn')
     @classmethod
     def validate_postgres_dsn(cls, v):
@@ -101,10 +100,11 @@ class Settings(BaseSettings):
             import warnings
             warnings.warn(
                 "Using default database credentials! Change password in production.",
-                UserWarning
+                UserWarning,
+                stacklevel=2
             )
         return v
-    
+
     @field_validator('debug')
     @classmethod
     def validate_debug_mode(cls, v):
@@ -113,10 +113,11 @@ class Settings(BaseSettings):
             import warnings
             warnings.warn(
                 "Debug mode is enabled in production! This is a security risk.",
-                UserWarning
+                UserWarning,
+                stacklevel=2
             )
         return v
-    
+
     @field_validator('cors_origins')
     @classmethod
     def validate_cors_origins(cls, v):
@@ -125,7 +126,8 @@ class Settings(BaseSettings):
             import warnings
             warnings.warn(
                 "CORS allows all origins (*)! Restrict to specific domains in production.",
-                UserWarning
+                UserWarning,
+                stacklevel=2
             )
         return v
 

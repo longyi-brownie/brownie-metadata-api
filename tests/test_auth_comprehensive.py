@@ -1,13 +1,13 @@
 """Comprehensive authentication tests."""
 
-import pytest
 import uuid
+
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.main import app
-from app.models import User, Organization, Team
-from app.schemas import UserRole
+from app.models import Organization, Team
 
 
 class TestAuthentication:
@@ -56,7 +56,7 @@ class TestAuthentication:
             "organization_name": "New Test Organization",
             "team_name": "New Test Team"
         })
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "access_token" in data
@@ -74,13 +74,13 @@ class TestAuthentication:
             "organization_name": "Login Organization",
             "team_name": "Login Team"
         })
-        
+
         # Then login
         response = client.post("/api/v1/auth/login", json={
             "email": "login@example.com",
             "password": "testpassword123"
         })
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "access_token" in data
@@ -98,14 +98,14 @@ class TestAuthentication:
             "organization_name": "Current Organization",
             "team_name": "Current Team"
         })
-        
+
         token = signup_response.json()["access_token"]
-        
+
         # Get current user
         response = client.get("/api/v1/auth/me", headers={
             "Authorization": f"Bearer {token}"
         })
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["email"] == "current@example.com"

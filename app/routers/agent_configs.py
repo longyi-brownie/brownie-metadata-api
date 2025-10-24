@@ -1,18 +1,20 @@
 """Agent configuration management endpoints."""
 
 import uuid
-from typing import List
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_user, require_team_role
+from ..auth import get_current_user
 from ..db import get_db
 from ..models import AgentConfig, Team, User
 from ..schemas import (
-    AgentConfigCreate, AgentConfigResponse, AgentConfigUpdate, 
-    AgentConfigListParams, PaginatedResponse
+    AgentConfigCreate,
+    AgentConfigListParams,
+    AgentConfigResponse,
+    AgentConfigUpdate,
+    PaginatedResponse,
 )
 
 logger = structlog.get_logger(__name__)
@@ -27,7 +29,7 @@ async def create_agent_config(
     db: Session = Depends(get_db)
 ):
     """Create a new agent configuration (editor/admin only)."""
-    
+
     # Verify team exists
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
@@ -35,33 +37,33 @@ async def create_agent_config(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Team not found"
         )
-    
+
     # Check team membership
     if current_user.team_id != team_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not a member of this team"
         )
-    
+
     # Check role permissions (editor/admin only)
     if current_user.role.value not in {"editor", "admin"}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions. Editor or admin role required."
         )
-    
+
     # Check for unique name within team
     existing_config = db.query(AgentConfig).filter(
         AgentConfig.team_id == team_id,
         AgentConfig.name == config_data.name
     ).first()
-    
+
     if existing_config:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Agent configuration with this name already exists in team"
         )
-    
+
     # Create agent config
     agent_config = AgentConfig(
         name=config_data.name,
@@ -82,11 +84,11 @@ async def create_agent_config(
         created_by=current_user.id,
         updated_by=current_user.id,
     )
-    
+
     db.add(agent_config)
     db.commit()
     db.refresh(agent_config)
-    
+
     logger.info(
         "Agent config created",
         config_id=agent_config.id,
@@ -94,7 +96,7 @@ async def create_agent_config(
         team_id=team_id,
         created_by=current_user.id
     )
-    
+
     return agent_config
 
 
@@ -106,45 +108,45 @@ async def list_agent_configs(
     db: Session = Depends(get_db)
 ):
     """List agent configurations for a team with pagination (viewer/editor/admin)."""
-    
+
     # Check team membership
     if current_user.team_id != team_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not a member of this team"
         )
-    
+
     query = db.query(AgentConfig).filter(AgentConfig.team_id == team_id)
-    
+
     # Apply filters
     if params.agent_type:
         query = query.filter(AgentConfig.agent_type == params.agent_type)
-    
+
     if params.is_active is not None:
         query = query.filter(AgentConfig.is_active == params.is_active)
-    
+
     # Apply cursor pagination
     if params.cursor:
         try:
             cursor_id = uuid.UUID(params.cursor)
             query = query.filter(AgentConfig.id > cursor_id)
-        except ValueError:
+        except ValueError as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid cursor format"
-            )
-    
+            ) from e
+
     # Get configs
     configs = query.order_by(AgentConfig.id).limit(params.limit + 1).all()
-    
+
     # Check if there are more results
     has_more = len(configs) > params.limit
     if has_more:
         configs = configs[:-1]
-    
+
     # Get next cursor
     next_cursor = str(configs[-1].id) if configs and has_more else None
-    
+
     return PaginatedResponse(
         items=configs,
         next_cursor=next_cursor,
@@ -159,21 +161,21 @@ async def get_agent_config(
     db: Session = Depends(get_db)
 ):
     """Get agent configuration by ID (viewer/editor/admin)."""
-    
+
     config = db.query(AgentConfig).filter(AgentConfig.id == config_id).first()
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Agent configuration not found"
         )
-    
+
     # Check team membership
     if current_user.team_id != config.team_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User does not belong to this team"
         )
-    
+
     return config
 
 
@@ -186,35 +188,35 @@ async def update_agent_config(
     db: Session = Depends(get_db)
 ):
     """Update agent configuration with optimistic locking (editor/admin only)."""
-    
+
     config = db.query(AgentConfig).filter(AgentConfig.id == config_id).first()
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Agent configuration not found"
         )
-    
+
     # Check team membership
     if current_user.team_id != config.team_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not a member of this team"
         )
-    
+
     # Check role permissions (editor/admin only)
     if current_user.role.value not in {"editor", "admin"}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions. Editor or admin role required."
         )
-    
+
     # Check optimistic locking
     if if_match and if_match != str(config.version):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Configuration was modified by another user. Please refresh and try again."
         )
-    
+
     # Check for unique name within team (if name is being updated)
     if config_data.name and config_data.name != config.name:
         existing_config = db.query(AgentConfig).filter(
@@ -222,32 +224,32 @@ async def update_agent_config(
             AgentConfig.name == config_data.name,
             AgentConfig.id != config_id
         ).first()
-        
+
         if existing_config:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Agent configuration with this name already exists in team"
             )
-    
+
     # Update fields
     update_data = config_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(config, field, value)
-    
+
     # Increment version for optimistic locking
     config.version += 1
     config.updated_by = current_user.id
-    
+
     db.commit()
     db.refresh(config)
-    
+
     logger.info(
         "Agent config updated",
         config_id=config.id,
         version=config.version,
         updated_by=current_user.id
     )
-    
+
     return config
 
 
@@ -258,38 +260,38 @@ async def delete_agent_config(
     db: Session = Depends(get_db)
 ):
     """Soft delete agent configuration (admin only)."""
-    
+
     config = db.query(AgentConfig).filter(AgentConfig.id == config_id).first()
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Agent configuration not found"
         )
-    
+
     # Check team membership
     if current_user.team_id != config.team_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not a member of this team"
         )
-    
+
     # Check role permissions (admin only)
     if current_user.role.value != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions. Admin role required."
         )
-    
+
     # Soft delete by setting is_active to False
     config.is_active = False
     config.updated_by = current_user.id
-    
+
     db.commit()
-    
+
     logger.info(
         "Agent config deleted",
         config_id=config.id,
         deleted_by=current_user.id
     )
-    
+
     return {"message": "Agent configuration deleted successfully"}

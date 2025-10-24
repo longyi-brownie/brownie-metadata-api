@@ -3,9 +3,8 @@
 import enum
 import uuid
 from datetime import datetime
-from typing import Any
 
-from sqlalchemy import JSON, Boolean, Column, Enum, ForeignKey, String, Text
+from sqlalchemy import JSON, Boolean, Enum, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -99,11 +98,11 @@ class AgentType(str, enum.Enum):
 class Organization(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
     """Organization model."""
     __tablename__ = "organizations"
-    
+
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=True)
     settings: Mapped[dict] = mapped_column(JSON, nullable=True, default=dict)
-    
+
     # Relationships
     teams = relationship("Team", back_populates="organization")
     users = relationship("User", back_populates="organization")
@@ -112,11 +111,11 @@ class Organization(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
 class Team(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
     """Team model."""
     __tablename__ = "teams"
-    
+
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=True)
     settings: Mapped[dict] = mapped_column(JSON, nullable=True, default=dict)
-    
+
     # Foreign keys
     organization_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -124,7 +123,7 @@ class Team(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
         nullable=False,
         index=True,
     )
-    
+
     # Relationships
     organization = relationship("Organization", back_populates="teams")
     users = relationship("User", back_populates="team")
@@ -133,7 +132,7 @@ class Team(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
 class User(BaseModel, TimestampMixin, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
     """User model for team members."""
     __tablename__ = "users"
-    
+
     # Basic info
     email: Mapped[str] = mapped_column(
         String(255), nullable=False, unique=True, index=True
@@ -143,18 +142,18 @@ class User(BaseModel, TimestampMixin, OrgScopedMixin, AuditMixin, SoftDeleteMixi
     )
     full_name: Mapped[str] = mapped_column(String(255), nullable=True)
     avatar_url: Mapped[str] = mapped_column(String(500), nullable=True)
-    
+
     # Auth
     password_hash: Mapped[str] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    
+
     # OIDC/SSO
     oidc_subject: Mapped[str] = mapped_column(
         String(255), nullable=True, unique=True, index=True
     )
     oidc_provider: Mapped[str] = mapped_column(String(100), nullable=True)
-    
+
     # Team membership
     team_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -165,10 +164,10 @@ class User(BaseModel, TimestampMixin, OrgScopedMixin, AuditMixin, SoftDeleteMixi
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole), default=UserRole.MEMBER, nullable=False
     )
-    
+
     # Settings
     preferences: Mapped[dict] = mapped_column(JSON, nullable=True, default=dict)
-    
+
     # Foreign keys
     organization_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -176,7 +175,7 @@ class User(BaseModel, TimestampMixin, OrgScopedMixin, AuditMixin, SoftDeleteMixi
         nullable=False,
         index=True,
     )
-    
+
     # Relationships
     organization = relationship("Organization", back_populates="users")
     team = relationship("Team", back_populates="users")
@@ -185,7 +184,7 @@ class User(BaseModel, TimestampMixin, OrgScopedMixin, AuditMixin, SoftDeleteMixi
 class Incident(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
     """Incident model."""
     __tablename__ = "incidents"
-    
+
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=True)
     status: Mapped[IncidentStatus] = mapped_column(
@@ -194,7 +193,7 @@ class Incident(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
     priority: Mapped[IncidentPriority] = mapped_column(
         Enum(IncidentPriority), default=IncidentPriority.MEDIUM, nullable=False
     )
-    
+
     # Foreign keys
     organization_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -223,14 +222,14 @@ class Incident(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
 class AgentConfig(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
     """Agent configuration model."""
     __tablename__ = "agent_configs"
-    
+
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     agent_type: Mapped[AgentType] = mapped_column(
         Enum(AgentType), nullable=False
     )
     config: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    
+
     # Foreign keys
     organization_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -243,12 +242,12 @@ class AgentConfig(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
 class Stats(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
     """Statistics model."""
     __tablename__ = "stats"
-    
+
     metric_name: Mapped[str] = mapped_column(String(255), nullable=False)
     metric_value: Mapped[float] = mapped_column(nullable=False)
     metric_unit: Mapped[str] = mapped_column(String(50), nullable=True)
     tags: Mapped[dict] = mapped_column(JSON, nullable=True, default=dict)
-    
+
     # Foreign keys
     organization_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -261,11 +260,11 @@ class Stats(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
 class Config(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
     """Configuration model."""
     __tablename__ = "configs"
-    
+
     key: Mapped[str] = mapped_column(String(255), nullable=False)
     value: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=True)
-    
+
     # Foreign keys
     organization_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

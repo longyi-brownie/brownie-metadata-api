@@ -1,16 +1,22 @@
 """Team management endpoints."""
 
 import uuid
-from typing import List
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_user, require_org_access, require_team_role
+from ..auth import get_current_user
 from ..db import get_db
-from ..models import Team, User, Organization
-from ..schemas import TeamCreate, TeamResponse, TeamUpdate, TeamMemberAdd, TeamMemberUpdate, TeamMemberResponse
+from ..models import Organization, Team, User
+from ..schemas import (
+    TeamCreate,
+    TeamMemberAdd,
+    TeamMemberResponse,
+    TeamMemberUpdate,
+    TeamResponse,
+    TeamUpdate,
+)
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -24,14 +30,14 @@ async def create_team(
     db: Session = Depends(get_db)
 ):
     """Create a new team under an organization."""
-    
+
     # Check organization access
     if current_user.org_id != org_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to this organization"
         )
-    
+
     # Verify organization exists
     organization = db.query(Organization).filter(Organization.id == org_id).first()
     if not organization:
@@ -39,19 +45,19 @@ async def create_team(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Organization not found"
         )
-    
+
     # Check if team with same name/slug exists in org
     existing_team = db.query(Team).filter(
         Team.org_id == org_id,
         (Team.name == team_data.name) | (Team.slug == team_data.slug)
     ).first()
-    
+
     if existing_team:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Team with this name or slug already exists in organization"
         )
-    
+
     # Create team
     team = Team(
         name=team_data.name,
@@ -64,11 +70,11 @@ async def create_team(
         created_by=current_user.id,
         updated_by=current_user.id,
     )
-    
+
     db.add(team)
     db.commit()
     db.refresh(team)
-    
+
     logger.info(
         "Team created",
         team_id=team.id,
@@ -76,30 +82,30 @@ async def create_team(
         org_id=org_id,
         created_by=current_user.id
     )
-    
+
     return team
 
 
-@router.get("/organizations/{org_id}/teams", response_model=List[TeamResponse])
+@router.get("/organizations/{org_id}/teams", response_model=list[TeamResponse])
 async def list_teams(
     org_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List teams in an organization."""
-    
+
     # Check organization access
     if current_user.org_id != org_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to this organization"
         )
-    
+
     teams = db.query(Team).filter(
         Team.org_id == org_id,
-        Team.is_active == True
+        Team.is_active
     ).all()
-    
+
     return teams
 
 
@@ -110,21 +116,21 @@ async def get_team(
     db: Session = Depends(get_db)
 ):
     """Get team by ID."""
-    
+
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Team not found"
         )
-    
+
     # Check team access
     if team.org_id != current_user.org_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User does not belong to this team's organization"
         )
-    
+
     return team
 
 
@@ -136,36 +142,36 @@ async def update_team(
     db: Session = Depends(get_db)
 ):
     """Update team (admin only)."""
-    
+
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Team not found"
         )
-    
+
     # Check team access
     if team.org_id != current_user.org_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User does not belong to this team's organization"
         )
-    
+
     # Update fields
     update_data = team_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(team, field, value)
-    
+
     team.updated_by = current_user.id
     db.commit()
     db.refresh(team)
-    
+
     logger.info(
         "Team updated",
         team_id=team.id,
         updated_by=current_user.id
     )
-    
+
     return team
 
 
@@ -177,7 +183,7 @@ async def add_team_member(
     db: Session = Depends(get_db)
 ):
     """Add a member to a team (admin only)."""
-    
+
     # Get team
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
@@ -185,21 +191,21 @@ async def add_team_member(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Team not found"
         )
-    
+
     # Check team membership
     if current_user.team_id != team_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not a member of this team"
         )
-    
+
     # Check role permissions (admin only)
     if current_user.role.value != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions. Admin role required."
         )
-    
+
     # Get user to add
     user = db.query(User).filter(User.id == member_data.user_id).first()
     if not user:
@@ -207,22 +213,22 @@ async def add_team_member(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
+
     # Check if user belongs to same organization
     if user.org_id != team.org_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User does not belong to the same organization"
         )
-    
+
     # Update user's team and role
     user.team_id = team_id
     user.role = member_data.role
     user.updated_by = current_user.id
-    
+
     db.commit()
     db.refresh(user)
-    
+
     logger.info(
         "Team member added",
         team_id=team_id,
@@ -230,7 +236,7 @@ async def add_team_member(
         role=member_data.role.value,
         added_by=current_user.id
     )
-    
+
     return TeamMemberResponse(
         user_id=user.id,
         role=user.role,
@@ -247,40 +253,40 @@ async def update_team_member(
     db: Session = Depends(get_db)
 ):
     """Update team member role (admin only)."""
-    
+
     # Check team membership
     if current_user.team_id != team_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not a member of this team"
         )
-    
+
     # Check role permissions (admin only)
     if current_user.role.value != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions. Admin role required."
         )
-    
+
     # Get user
     user = db.query(User).filter(
         User.id == user_id,
         User.team_id == team_id
     ).first()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found in team"
         )
-    
+
     # Update role
     user.role = member_data.role
     user.updated_by = current_user.id
-    
+
     db.commit()
     db.refresh(user)
-    
+
     logger.info(
         "Team member updated",
         team_id=team_id,
@@ -288,7 +294,7 @@ async def update_team_member(
         new_role=member_data.role.value,
         updated_by=current_user.id
     )
-    
+
     return TeamMemberResponse(
         user_id=user.id,
         role=user.role,
@@ -304,60 +310,60 @@ async def remove_team_member(
     db: Session = Depends(get_db)
 ):
     """Remove member from team (admin only)."""
-    
+
     # Check team membership
     if current_user.team_id != team_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not a member of this team"
         )
-    
+
     # Check role permissions (admin only)
     if current_user.role.value != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions. Admin role required."
         )
-    
+
     # Get user
     user = db.query(User).filter(
         User.id == user_id,
         User.team_id == team_id
     ).first()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found in team"
         )
-    
+
     # Don't allow removing the last admin
     if user.role.value == "admin":
         admin_count = db.query(User).filter(
             User.team_id == team_id,
             User.role == "admin",
-            User.is_active == True,
+            User.is_active,
             User.deleted_at.is_(None)
         ).count()
-        
+
         if admin_count <= 1:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cannot remove the last admin from team"
             )
-    
+
     # Soft delete user
     user.deleted_at = db.func.now()
     user.deleted_by = current_user.id
     user.is_active = False
-    
+
     db.commit()
-    
+
     logger.info(
         "Team member removed",
         team_id=team_id,
         user_id=user.id,
         removed_by=current_user.id
     )
-    
+
     return {"message": "Team member removed successfully"}

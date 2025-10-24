@@ -1,13 +1,10 @@
 """Comprehensive user CRUD tests."""
 
+
 import pytest
-import uuid
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
 from app.main import app
-from app.models import User, Organization, Team
-from app.schemas import UserRole
 
 
 class TestUserCRUD:
@@ -30,7 +27,7 @@ class TestUserCRUD:
             "organization_name": "CRUD Organization",
             "team_name": "CRUD Team"
         })
-        
+
         token = signup_response.json()["access_token"]
         return {"Authorization": f"Bearer {token}"}
 
@@ -43,9 +40,9 @@ class TestUserCRUD:
     def test_get_user_by_id_success(self, client: TestClient, auth_headers: dict, user_info: dict):
         """Test getting user by ID."""
         user_id = user_info["id"]
-        
+
         response = client.get(f"/api/v1/users/{user_id}", headers=auth_headers)
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == user_id
@@ -57,9 +54,9 @@ class TestUserCRUD:
     def test_list_organization_users_success(self, client: TestClient, auth_headers: dict, user_info: dict):
         """Test listing users in organization."""
         org_id = user_info["org_id"]
-        
+
         response = client.get(f"/api/v1/organizations/{org_id}/users", headers=auth_headers)
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "items" in data
@@ -72,7 +69,7 @@ class TestUserCRUD:
         """Test creating a new user in organization."""
         org_id = user_info["org_id"]
         team_id = user_info["team_id"]
-        
+
         response = client.post(f"/api/v1/organizations/{org_id}/users", json={
             "email": "newuser@example.com",
             "password": "testpassword123",
@@ -81,7 +78,7 @@ class TestUserCRUD:
             "team_id": team_id,
             "role": "member"
         }, headers=auth_headers)
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["email"] == "newuser@example.com"

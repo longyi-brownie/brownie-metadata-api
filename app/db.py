@@ -1,17 +1,16 @@
 """Database configuration and session management."""
 
 import os
-import structlog
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
-from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
+import structlog
+from certificates import cert_manager
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import Session, sessionmaker
 
 from .settings import settings
-from certificates import cert_manager
 
 logger = structlog.get_logger(__name__)
 
@@ -20,35 +19,35 @@ def _build_database_url_with_certs() -> str:
     """Build database URL with SSL certificates if available."""
     parsed = urlparse(settings.postgres_dsn)
     query_params = parse_qs(parsed.query)
-    
+
     # Check if sslmode is already set in the DSN (e.g., sslmode=disable)
     existing_sslmode = query_params.get('sslmode', [None])[0]
-    
+
     # If sslmode is explicitly set to disable, don't add SSL config
     if existing_sslmode == 'disable':
         return settings.postgres_dsn
-    
+
     # Check if SSL parameters are already present in the DSN
     ssl_params_present = any(param in query_params for param in ['sslcert', 'sslkey', 'sslrootcert'])
-    
+
     # If SSL parameters are already present, don't override them
     if ssl_params_present:
         return settings.postgres_dsn
-    
+
     # Check if mTLS is enabled (production mode)
     mtls_enabled = os.getenv("METADATA_MTLS_ENABLED", "false").lower() == "true"
-    
+
     # Get SSL configuration from certificate manager
     ssl_config = cert_manager.get_database_ssl_config(mtls_enabled=mtls_enabled)
-    
+
     # Add SSL parameters to query string
     for key, value in ssl_config.items():
         if value:
             query_params[key] = [str(value)]
-    
+
     # Rebuild query string
     new_query = urlencode(query_params, doseq=True)
-    
+
     # Rebuild URL
     new_parsed = parsed._replace(query=new_query)
     return urlunparse(new_parsed)
@@ -113,11 +112,11 @@ async def init_db() -> None:
             # Test connection
             result = conn.execute(text("SELECT 1"))
             result.fetchone()
-            
+
             # Set timezone to UTC
             conn.execute(text("SET timezone = 'UTC'"))
             conn.commit()
-            
+
         logger.info("Database connection established successfully")
     except Exception as e:
         logger.error(

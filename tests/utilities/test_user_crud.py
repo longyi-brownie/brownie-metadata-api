@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Test script for user CRUD operations."""
 
-import requests
-import json
 import sys
+
+import requests
 
 BASE_URL = "http://localhost:8080"
 
@@ -23,7 +23,7 @@ def test_health():
 def test_user_endpoints():
     """Test user endpoints."""
     print("\nTesting user endpoints...")
-    
+
     # Test getting user by ID (this will fail without auth, but let's see the error)
     user_id = "c5ee69a2-ab73-4f9d-be44-aa90b0b51d0a"  # From our database
     try:
@@ -32,7 +32,7 @@ def test_user_endpoints():
         print(f"Get user response: {response.text}")
     except Exception as e:
         print(f"Get user failed: {e}")
-    
+
     # Test listing users in organization
     org_id = "c9e8f1b4-a7c6-4864-bd67-4ca80a7deebc"  # From our database
     try:
@@ -45,7 +45,7 @@ def test_user_endpoints():
 def test_auth_endpoints():
     """Test authentication endpoints."""
     print("\nTesting auth endpoints...")
-    
+
     # Test login
     try:
         response = requests.post(f"{BASE_URL}/api/v1/auth/login", json={
@@ -56,7 +56,7 @@ def test_auth_endpoints():
         print(f"Login response: {response.text}")
     except Exception as e:
         print(f"Login failed: {e}")
-    
+
     # Test signup
     try:
         response = requests.post(f"{BASE_URL}/api/v1/auth/signup", json={
@@ -75,12 +75,12 @@ def test_auth_endpoints():
 if __name__ == "__main__":
     print("Testing FastAPI User CRUD Endpoints")
     print("=" * 40)
-    
+
     if not test_health():
         print("Server is not healthy, exiting...")
         sys.exit(1)
-    
+
     test_auth_endpoints()
     test_user_endpoints()
-    
+
     print("\nTest completed!")

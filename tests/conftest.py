@@ -39,6 +39,14 @@ def postgres_container():
         dsn = os.getenv("METADATA_POSTGRES_DSN", default_dsn)
         container.get_connection_url = lambda: dsn
         yield container
+    elif os.getenv("METADATA_POSTGRES_DSN"):
+        # Local testing with pre-configured database
+        from types import SimpleNamespace
+
+        container = SimpleNamespace()
+        dsn = os.getenv("METADATA_POSTGRES_DSN")
+        container.get_connection_url = lambda: dsn
+        yield container
     else:
         # Locally, use testcontainers to spin up a temporary container
         with PostgresContainer("postgres:16") as postgres:

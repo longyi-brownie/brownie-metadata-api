@@ -1,7 +1,6 @@
 """Comprehensive authentication tests."""
 
 
-
 class TestAuthentication:
     """Test authentication functionality."""
 

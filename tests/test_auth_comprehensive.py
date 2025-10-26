@@ -1,54 +1,12 @@
 """Comprehensive authentication tests."""
 
-import uuid
-
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
-
-from app.main import app
-from app.models import Organization, Team
 
 
 class TestAuthentication:
     """Test authentication functionality."""
 
-    @pytest.fixture
-    def client(self):
-        """Create test client."""
-        return TestClient(app)
-
-    @pytest.fixture
-    def test_org(self, db: Session):
-        """Create test organization."""
-        org = Organization(
-            id=uuid.uuid4(),
-            name="Test Organization",
-            slug="test-org",
-            description="Test organization for testing",
-        )
-        db.add(org)
-        db.commit()
-        db.refresh(org)
-        return org
-
-    @pytest.fixture
-    def test_team(self, db: Session, test_org: Organization):
-        """Create test team."""
-        team = Team(
-            id=uuid.uuid4(),
-            name="Test Team",
-            description="Test team for testing",
-            org_id=test_org.id,
-        )
-        db.add(team)
-        db.commit()
-        db.refresh(team)
-        return team
-
-    def test_signup_success(
-        self, client: TestClient, test_org: Organization, test_team: Team
-    ):
+    def test_signup_success(self, client):
         """Test successful user signup."""
         response = client.post(
             "/api/v1/auth/signup",
@@ -68,7 +26,7 @@ class TestAuthentication:
         assert data["token_type"] == "bearer"
         assert data["expires_in"] == 3600
 
-    def test_login_success(self, client: TestClient):
+    def test_login_success(self, client):
         """Test successful login."""
         # First signup
         client.post(
@@ -95,7 +53,7 @@ class TestAuthentication:
         assert data["token_type"] == "bearer"
         assert data["expires_in"] == 3600
 
-    def test_get_current_user_success(self, client: TestClient):
+    def test_get_current_user_success(self, client):
         """Test getting current user with valid token."""
         # Signup
         signup_response = client.post(

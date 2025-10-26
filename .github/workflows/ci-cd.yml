@@ -46,21 +46,13 @@ jobs:
       run: |
         uv sync --dev
         uv add --dev ruff mypy bandit safety
-    
-    - name: Generate test certificates
-      run: |
-        mkdir -p test-certs
-        # Generate self-signed certificates for testing
-        openssl req -x509 -newkey rsa:4096 -keyout test-certs/client.key -out test-certs/client.crt -days 365 -nodes -subj "/CN=test-client"
-        openssl req -x509 -newkey rsa:4096 -keyout test-certs/ca.crt -out test-certs/ca.key -days 365 -nodes -subj "/CN=test-ca"
-        chmod 600 test-certs/client.key
-    
+
     - name: Set up test database
       run: |
         # Clean up any existing test database and user
         PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS test_brownie_metadata;" || true
         PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP USER IF EXISTS test_user;" || true
-        
+
         # Create test user and database
         PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE USER test_user WITH PASSWORD 'test_password';"
         PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE test_brownie_metadata OWNER test_user;"

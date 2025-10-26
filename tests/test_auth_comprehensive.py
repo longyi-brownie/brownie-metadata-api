@@ -1,6 +1,5 @@
 """Comprehensive authentication tests."""
 
-import pytest
 
 
 class TestAuthentication:

@@ -266,7 +266,8 @@ async def delete_user(
             )
 
     # Soft delete user
-    user.deleted_at = db.func.now()
+    from datetime import datetime
+    user.deleted_at = datetime.utcnow()  # type: ignore[attr-defined]
     user.deleted_by = current_user.id
     user.is_active = False
 

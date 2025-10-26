@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime, timedelta
+from typing import Any
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -29,12 +30,12 @@ router = APIRouter()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+    return pwd_context.verify(plain_password, hashed_password)  # type: ignore[no-any-return]
 
 
 def get_password_hash(password: str) -> str:
     """Hash a password."""
-    return pwd_context.hash(password)
+    return pwd_context.hash(password)  # type: ignore[no-any-return]
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
@@ -49,7 +50,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     encoded_jwt = jwt.encode(
         to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm
     )
-    return encoded_jwt
+    return encoded_jwt  # type: ignore[no-any-return]
 
 
 def verify_token(token: str) -> UserClaims | None:
@@ -132,7 +133,7 @@ async def get_current_user_claims(
         raise credentials_exception from e
 
 
-def require_team_role(team_id: uuid.UUID, allowed_roles: set[str]) -> callable:
+def require_team_role(team_id: uuid.UUID, allowed_roles: set[str]) -> Any:
     """Create a dependency that requires specific team roles."""
 
     async def check_team_role(
@@ -159,7 +160,7 @@ def require_team_role(team_id: uuid.UUID, allowed_roles: set[str]) -> callable:
     return check_team_role
 
 
-def require_permission(permission: str) -> callable:
+def require_permission(permission: str) -> Any:
     """Create a dependency that requires a specific permission."""
 
     async def check_permission(
@@ -233,7 +234,7 @@ def _get_role_permissions(role: UserRole) -> dict:
     return permissions.get(role.value, {})
 
 
-def require_org_access(org_id: uuid.UUID) -> callable:
+def require_org_access(org_id: uuid.UUID) -> Any:
     """Create a dependency that requires organization access."""
 
     async def check_org_access(current_user: User = Depends(get_current_user)) -> User:

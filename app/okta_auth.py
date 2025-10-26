@@ -100,7 +100,7 @@ class OktaClient:
                     detail="Failed to exchange authorization code",
                 )
 
-            return response.json()
+            return response.json()  # type: ignore[no-any-return]
 
     async def get_user_info(self, access_token: str) -> dict[str, Any]:
         """Get user information from Okta."""
@@ -123,7 +123,7 @@ class OktaClient:
                     detail="Failed to get user information",
                 )
 
-            return response.json()
+            return response.json()  # type: ignore[no-any-return]
 
     async def verify_id_token(self, id_token: str) -> dict[str, Any]:
         """Verify and decode ID token."""
@@ -140,7 +140,7 @@ class OktaClient:
                 id_token,
                 options={"verify_signature": False},  # Disable for development
             )
-            return payload
+            return payload  # type: ignore[no-any-return]
         except JWTError as e:
             logger.error("Failed to verify ID token", error=str(e))
             raise HTTPException(

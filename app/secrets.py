@@ -19,7 +19,7 @@ logger = structlog.get_logger(__name__)
 class SecretsManager:
     """Manages secrets across different environments."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.environment = os.getenv("ENVIRONMENT", "development")
         self.vault_enabled = os.getenv("VAULT_ENABLED", "false").lower() == "true"
 
@@ -72,7 +72,8 @@ class SecretsManager:
             )
 
             secret_data = secret_response["data"]["data"]
-            return secret_data.get("value")
+            value = secret_data.get("value")
+            return value if isinstance(value, str) else None
 
         except ImportError:
             logger.warning("hvac package not installed - Vault integration disabled")

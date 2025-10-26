@@ -6,10 +6,10 @@ from contextlib import asynccontextmanager
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import structlog
-from .cert_manager import cert_manager
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
+from .cert_manager import cert_manager
 from .settings import settings
 
 logger = structlog.get_logger(__name__)

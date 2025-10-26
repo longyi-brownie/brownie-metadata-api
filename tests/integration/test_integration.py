@@ -11,17 +11,7 @@ from app.main import app
 class TestIntegration:
     """Integration tests with real database."""
 
-    @pytest.fixture(scope="session")
-    def client(self):
-        """Create test client with real database."""
-        return TestClient(app)
-
-    @pytest.fixture(scope="session")
-    def db_session(self):
-        """Get database session."""
-        return next(get_db())
-
-    def test_full_user_lifecycle(self, client: TestClient, db_session: Session):
+    def test_full_user_lifecycle(self, client: TestClient, test_db_session: Session):
         """Test complete user lifecycle from signup to deletion."""
         # 1. Signup
         signup_response = client.post(
@@ -117,7 +107,7 @@ class TestIntegration:
         assert deleted_user_response.status_code == 404
 
     def test_multi_organization_isolation(
-        self, client: TestClient, db_session: Session
+        self, client: TestClient, test_db_session: Session
     ):
         """Test that users from different organizations are properly isolated."""
         # Create two users in different organizations
@@ -184,7 +174,7 @@ class TestIntegration:
         )
         assert org1_users.status_code == 403
 
-    def test_authentication_flow(self, client: TestClient, db_session: Session):
+    def test_authentication_flow(self, client: TestClient, test_db_session: Session):
         """Test complete authentication flow."""
         # 1. Signup
         signup_response = client.post(
@@ -230,7 +220,7 @@ class TestIntegration:
 
         assert wrong_login.status_code == 401
 
-    def test_pagination(self, client: TestClient, db_session: Session):
+    def test_pagination(self, client: TestClient, test_db_session: Session):
         """Test pagination functionality."""
         # Create a user and organization
         signup_response = client.post(
@@ -289,7 +279,7 @@ class TestIntegration:
         assert len(next_data["items"]) == 5
         assert next_data["has_more"] is True
 
-    def test_error_handling(self, client: TestClient, db_session: Session):
+    def test_error_handling(self, client: TestClient, test_db_session: Session):
         """Test error handling scenarios."""
         # Test invalid endpoints
         response = client.get("/api/v1/nonexistent")
@@ -309,7 +299,7 @@ class TestIntegration:
         )
         assert response.status_code == 401
 
-    def test_database_consistency(self, client: TestClient, db_session: Session):
+    def test_database_consistency(self, client: TestClient, test_db_session: Session):
         """Test database consistency and constraints."""
         # Test duplicate email signup
         client.post(

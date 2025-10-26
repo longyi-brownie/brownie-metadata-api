@@ -14,6 +14,7 @@ from brownie_metadata_db import (
     User,
     UserRole,
 )
+from brownie_metadata_db.database.base import Base
 
 # Re-export for convenience
 __all__ = [
@@ -28,4 +29,5 @@ __all__ = [
     "IncidentStatus",
     "IncidentPriority",
     "AgentType",
+    "Base",
 ]

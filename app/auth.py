@@ -46,14 +46,18 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
         expire = datetime.utcnow() + timedelta(minutes=settings.jwt_expires_minutes)
 
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    encoded_jwt = jwt.encode(
+        to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm
+    )
     return encoded_jwt
 
 
 def verify_token(token: str) -> UserClaims | None:
     """Verify and decode a JWT token."""
     try:
-        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        payload = jwt.decode(
+            token, settings.jwt_secret, algorithms=[settings.jwt_algorithm]
+        )
         user_id: str = payload.get("sub")
         org_id: str = payload.get("org_id")
         email: str = payload.get("email")
@@ -66,7 +70,7 @@ def verify_token(token: str) -> UserClaims | None:
             user_id=uuid.UUID(user_id),
             org_id=uuid.UUID(org_id),
             email=email,
-            roles=roles
+            roles=roles,
         )
     except (JWTError, ValueError) as e:
         logger.warning("Invalid token", error=str(e))
@@ -75,7 +79,7 @@ def verify_token(token: str) -> UserClaims | None:
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> User:
     """Get the current authenticated user."""
     credentials_exception = HTTPException(
@@ -90,11 +94,13 @@ async def get_current_user(
         if claims is None:
             raise credentials_exception
 
-        user = db.query(User).filter(
-            User.id == claims.user_id,
-            User.is_active,
-            User.deleted_at.is_(None)
-        ).first()
+        user = (
+            db.query(User)
+            .filter(
+                User.id == claims.user_id, User.is_active, User.deleted_at.is_(None)
+            )
+            .first()
+        )
 
         if user is None:
             raise credentials_exception
@@ -106,7 +112,7 @@ async def get_current_user(
 
 
 async def get_current_user_claims(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> UserClaims:
     """Get the current user's JWT claims."""
     credentials_exception = HTTPException(
@@ -130,8 +136,7 @@ def require_team_role(team_id: uuid.UUID, allowed_roles: set[str]) -> callable:
     """Create a dependency that requires specific team roles."""
 
     async def check_team_role(
-        current_user: User = Depends(get_current_user),
-        db: Session = Depends(get_db)
+        current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
     ) -> User:
         """Check if user has required role in the team."""
 
@@ -139,14 +144,14 @@ def require_team_role(team_id: uuid.UUID, allowed_roles: set[str]) -> callable:
         if current_user.team_id != team_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="User does not belong to this team"
+                detail="User does not belong to this team",
             )
 
         # Check if user has required role
         if current_user.role.value not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"User role '{current_user.role.value}' not in allowed roles: {allowed_roles}"
+                detail=f"User role '{current_user.role.value}' not in allowed roles: {allowed_roles}",
             )
 
         return current_user
@@ -158,8 +163,7 @@ def require_permission(permission: str) -> callable:
     """Create a dependency that requires a specific permission."""
 
     async def check_permission(
-        current_user: User = Depends(get_current_user),
-        db: Session = Depends(get_db)
+        current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
     ) -> User:
         """Check if user has the required permission."""
 
@@ -167,8 +171,7 @@ def require_permission(permission: str) -> callable:
         team = db.query(Team).filter(Team.id == current_user.team_id).first()
         if not team:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User team not found"
+                status_code=status.HTTP_403_FORBIDDEN, detail="User team not found"
             )
 
         # Check role-based permissions
@@ -181,7 +184,7 @@ def require_permission(permission: str) -> callable:
         if permission not in user_permissions or not user_permissions[permission]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Permission '{permission}' required"
+                detail=f"Permission '{permission}' required",
             )
 
         return current_user
@@ -224,7 +227,7 @@ def _get_role_permissions(role: UserRole) -> dict:
             "manage_incidents": False,
             "manage_agent_configs": False,
             "manage_stats": False,
-        }
+        },
     }
 
     return permissions.get(role.value, {})
@@ -233,15 +236,13 @@ def _get_role_permissions(role: UserRole) -> dict:
 def require_org_access(org_id: uuid.UUID) -> callable:
     """Create a dependency that requires organization access."""
 
-    async def check_org_access(
-        current_user: User = Depends(get_current_user)
-    ) -> User:
+    async def check_org_access(current_user: User = Depends(get_current_user)) -> User:
         """Check if user belongs to the organization."""
 
         if current_user.org_id != org_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="User does not belong to this organization"
+                detail="User does not belong to this organization",
             )
 
         return current_user
@@ -251,11 +252,11 @@ def require_org_access(org_id: uuid.UUID) -> callable:
 
 def authenticate_user(db: Session, email: str, password: str) -> User | None:
     """Authenticate a user with email and password."""
-    user = db.query(User).filter(
-        User.email == email,
-        User.is_active,
-        User.deleted_at.is_(None)
-    ).first()
+    user = (
+        db.query(User)
+        .filter(User.email == email, User.is_active, User.deleted_at.is_(None))
+        .first()
+    )
 
     if not user:
         return None
@@ -289,14 +290,14 @@ async def login(login_data: LoginRequest, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            detail="Incorrect email or password",
         )
 
     access_token = create_user_token(user)
     return TokenResponse(
         access_token=access_token,
         token_type="bearer",
-        expires_in=settings.jwt_expires_minutes * 60
+        expires_in=settings.jwt_expires_minutes * 60,
     )
 
 
@@ -309,7 +310,7 @@ async def signup(signup_data: SignupRequest, db: Session = Depends(get_db)):
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User with this email already exists"
+            detail="User with this email already exists",
         )
 
     # Create organization
@@ -356,7 +357,7 @@ async def signup(signup_data: SignupRequest, db: Session = Depends(get_db)):
     return TokenResponse(
         access_token=access_token,
         token_type="bearer",
-        expires_in=settings.jwt_expires_minutes * 60
+        expires_in=settings.jwt_expires_minutes * 60,
     )
 
 
@@ -382,7 +383,7 @@ async def okta_login():
     """Stub for Okta OIDC login."""
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Okta OIDC integration not implemented in v1"
+        detail="Okta OIDC integration not implemented in v1",
     )
 
 
@@ -391,5 +392,5 @@ async def okta_callback():
     """Stub for Okta OIDC callback."""
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Okta OIDC integration not implemented in v1"
+        detail="Okta OIDC integration not implemented in v1",
     )

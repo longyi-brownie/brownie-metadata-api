@@ -45,7 +45,9 @@ def test_engine(test_db_url):
 @pytest.fixture
 def test_db_session(test_engine):
     """Create test database session."""
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    TestingSessionLocal = sessionmaker(
+        autocommit=False, autoflush=False, bind=test_engine
+    )
     session = TestingSessionLocal()
     try:
         yield session
@@ -56,6 +58,7 @@ def test_db_session(test_engine):
 @pytest.fixture
 def client(test_db_session):
     """Create test client with database session override."""
+
     def override_get_db():
         try:
             yield test_db_session
@@ -79,7 +82,7 @@ def test_user_data():
         "username": "testuser",
         "full_name": "Test User",
         "organization_name": "Test Organization",
-        "team_name": "Test Team"
+        "team_name": "Test Team",
     }
 
 
@@ -92,7 +95,7 @@ def test_organization_data():
         "description": "A test organization",
         "is_active": True,
         "max_teams": 10,
-        "max_users_per_team": 50
+        "max_users_per_team": 50,
     }
 
 
@@ -104,7 +107,7 @@ def test_team_data():
         "slug": "test-team",
         "description": "A test team",
         "is_active": True,
-        "permissions": {}
+        "permissions": {},
     }
 
 
@@ -117,7 +120,7 @@ def test_incident_data():
         "status": "open",
         "priority": "medium",
         "tags": ["test", "incident"],
-        "incident_metadata": {"test": True}
+        "incident_metadata": {"test": True},
     }
 
 
@@ -136,7 +139,7 @@ def test_agent_config_data():
         "triggers": {},
         "conditions": {},
         "tags": ["test"],
-        "config_metadata": {}
+        "config_metadata": {},
     }
 
 
@@ -152,5 +155,5 @@ def test_stats_data():
         "time_window": "1m",
         "labels": {"test": True},
         "description": "A test metric",
-        "unit": "count"
+        "unit": "count",
     }

@@ -16,7 +16,9 @@ def test_create_incident(client: TestClient, test_user_data, test_incident_data)
 
     # Create incident
     incident_data = {**test_incident_data, "team_id": team_id}
-    response = client.post(f"/api/v1/teams/{team_id}/incidents", json=incident_data, headers=headers)
+    response = client.post(
+        f"/api/v1/teams/{team_id}/incidents", json=incident_data, headers=headers
+    )
     assert response.status_code == 200
 
     data = response.json()
@@ -30,7 +32,9 @@ def test_create_incident(client: TestClient, test_user_data, test_incident_data)
     assert "updated_at" in data
 
 
-def test_create_incident_with_idempotency_key(client: TestClient, test_user_data, test_incident_data):
+def test_create_incident_with_idempotency_key(
+    client: TestClient, test_user_data, test_incident_data
+):
     """Test creating incident with idempotency key."""
     # Signup to get token and team
     signup_response = client.post("/api/v1/auth/signup", json=test_user_data)
@@ -45,15 +49,19 @@ def test_create_incident_with_idempotency_key(client: TestClient, test_user_data
     incident_data = {
         **test_incident_data,
         "team_id": team_id,
-        "idempotency_key": "test-key-123"
+        "idempotency_key": "test-key-123",
     }
 
     # First creation
-    response1 = client.post(f"/api/v1/teams/{team_id}/incidents", json=incident_data, headers=headers)
+    response1 = client.post(
+        f"/api/v1/teams/{team_id}/incidents", json=incident_data, headers=headers
+    )
     assert response1.status_code == 200
 
     # Second creation with same idempotency key should return same incident
-    response2 = client.post(f"/api/v1/teams/{team_id}/incidents", json=incident_data, headers=headers)
+    response2 = client.post(
+        f"/api/v1/teams/{team_id}/incidents", json=incident_data, headers=headers
+    )
     assert response2.status_code == 200
     assert response1.json()["id"] == response2.json()["id"]
 
@@ -71,7 +79,9 @@ def test_list_incidents(client: TestClient, test_user_data, test_incident_data):
 
     # Create incident
     incident_data = {**test_incident_data, "team_id": team_id}
-    client.post(f"/api/v1/teams/{team_id}/incidents", json=incident_data, headers=headers)
+    client.post(
+        f"/api/v1/teams/{team_id}/incidents", json=incident_data, headers=headers
+    )
 
     # List incidents
     response = client.get(f"/api/v1/teams/{team_id}/incidents", headers=headers)
@@ -85,7 +95,9 @@ def test_list_incidents(client: TestClient, test_user_data, test_incident_data):
     assert len(data["items"]) >= 1
 
 
-def test_list_incidents_with_filters(client: TestClient, test_user_data, test_incident_data):
+def test_list_incidents_with_filters(
+    client: TestClient, test_user_data, test_incident_data
+):
     """Test listing incidents with status filter."""
     # Signup to get token and team
     signup_response = client.post("/api/v1/auth/signup", json=test_user_data)
@@ -98,12 +110,13 @@ def test_list_incidents_with_filters(client: TestClient, test_user_data, test_in
 
     # Create incident
     incident_data = {**test_incident_data, "team_id": team_id}
-    client.post(f"/api/v1/teams/{team_id}/incidents", json=incident_data, headers=headers)
+    client.post(
+        f"/api/v1/teams/{team_id}/incidents", json=incident_data, headers=headers
+    )
 
     # List incidents with status filter
     response = client.get(
-        f"/api/v1/teams/{team_id}/incidents?status=open",
-        headers=headers
+        f"/api/v1/teams/{team_id}/incidents?status=open", headers=headers
     )
     assert response.status_code == 200
 
@@ -125,7 +138,9 @@ def test_get_incident(client: TestClient, test_user_data, test_incident_data):
 
     # Create incident
     incident_data = {**test_incident_data, "team_id": team_id}
-    create_response = client.post(f"/api/v1/teams/{team_id}/incidents", json=incident_data, headers=headers)
+    create_response = client.post(
+        f"/api/v1/teams/{team_id}/incidents", json=incident_data, headers=headers
+    )
     incident_id = create_response.json()["id"]
 
     # Get incident
@@ -150,15 +165,16 @@ def test_update_incident(client: TestClient, test_user_data, test_incident_data)
 
     # Create incident
     incident_data = {**test_incident_data, "team_id": team_id}
-    create_response = client.post(f"/api/v1/teams/{team_id}/incidents", json=incident_data, headers=headers)
+    create_response = client.post(
+        f"/api/v1/teams/{team_id}/incidents", json=incident_data, headers=headers
+    )
     incident_id = create_response.json()["id"]
 
     # Update incident
-    update_data = {
-        "title": "Updated Incident",
-        "status": "in_progress"
-    }
-    response = client.put(f"/api/v1/incidents/{incident_id}", json=update_data, headers=headers)
+    update_data = {"title": "Updated Incident", "status": "in_progress"}
+    response = client.put(
+        f"/api/v1/incidents/{incident_id}", json=update_data, headers=headers
+    )
     assert response.status_code == 200
 
     data = response.json()
@@ -179,7 +195,9 @@ def test_delete_incident(client: TestClient, test_user_data, test_incident_data)
 
     # Create incident
     incident_data = {**test_incident_data, "team_id": team_id}
-    create_response = client.post(f"/api/v1/teams/{team_id}/incidents", json=incident_data, headers=headers)
+    create_response = client.post(
+        f"/api/v1/teams/{team_id}/incidents", json=incident_data, headers=headers
+    )
     incident_id = create_response.json()["id"]
 
     # Delete incident

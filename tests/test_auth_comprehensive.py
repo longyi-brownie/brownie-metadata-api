@@ -25,7 +25,7 @@ class TestAuthentication:
             id=uuid.uuid4(),
             name="Test Organization",
             slug="test-org",
-            description="Test organization for testing"
+            description="Test organization for testing",
         )
         db.add(org)
         db.commit()
@@ -39,23 +39,28 @@ class TestAuthentication:
             id=uuid.uuid4(),
             name="Test Team",
             description="Test team for testing",
-            org_id=test_org.id
+            org_id=test_org.id,
         )
         db.add(team)
         db.commit()
         db.refresh(team)
         return team
 
-    def test_signup_success(self, client: TestClient, test_org: Organization, test_team: Team):
+    def test_signup_success(
+        self, client: TestClient, test_org: Organization, test_team: Team
+    ):
         """Test successful user signup."""
-        response = client.post("/api/v1/auth/signup", json={
-            "email": "test@example.com",
-            "password": "testpassword123",
-            "username": "testuser",
-            "full_name": "Test User",
-            "organization_name": "New Test Organization",
-            "team_name": "New Test Team"
-        })
+        response = client.post(
+            "/api/v1/auth/signup",
+            json={
+                "email": "test@example.com",
+                "password": "testpassword123",
+                "username": "testuser",
+                "full_name": "Test User",
+                "organization_name": "New Test Organization",
+                "team_name": "New Test Team",
+            },
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -66,20 +71,23 @@ class TestAuthentication:
     def test_login_success(self, client: TestClient):
         """Test successful login."""
         # First signup
-        client.post("/api/v1/auth/signup", json={
-            "email": "login@example.com",
-            "password": "testpassword123",
-            "username": "loginuser",
-            "full_name": "Login User",
-            "organization_name": "Login Organization",
-            "team_name": "Login Team"
-        })
+        client.post(
+            "/api/v1/auth/signup",
+            json={
+                "email": "login@example.com",
+                "password": "testpassword123",
+                "username": "loginuser",
+                "full_name": "Login User",
+                "organization_name": "Login Organization",
+                "team_name": "Login Team",
+            },
+        )
 
         # Then login
-        response = client.post("/api/v1/auth/login", json={
-            "email": "login@example.com",
-            "password": "testpassword123"
-        })
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"email": "login@example.com", "password": "testpassword123"},
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -90,21 +98,24 @@ class TestAuthentication:
     def test_get_current_user_success(self, client: TestClient):
         """Test getting current user with valid token."""
         # Signup
-        signup_response = client.post("/api/v1/auth/signup", json={
-            "email": "current@example.com",
-            "password": "testpassword123",
-            "username": "currentuser",
-            "full_name": "Current User",
-            "organization_name": "Current Organization",
-            "team_name": "Current Team"
-        })
+        signup_response = client.post(
+            "/api/v1/auth/signup",
+            json={
+                "email": "current@example.com",
+                "password": "testpassword123",
+                "username": "currentuser",
+                "full_name": "Current User",
+                "organization_name": "Current Organization",
+                "team_name": "Current Team",
+            },
+        )
 
         token = signup_response.json()["access_token"]
 
         # Get current user
-        response = client.get("/api/v1/auth/me", headers={
-            "Authorization": f"Bearer {token}"
-        })
+        response = client.get(
+            "/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}
+        )
 
         assert response.status_code == 200
         data = response.json()

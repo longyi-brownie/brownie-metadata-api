@@ -5,6 +5,7 @@ print("=== Argon2 Test ===")
 
 try:
     from passlib.context import CryptContext
+
     pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
     # Test password hashing
@@ -29,4 +30,5 @@ try:
 except Exception as e:
     print(f"❌ Argon2 failed: {e}")
     import traceback
+
     traceback.print_exc()

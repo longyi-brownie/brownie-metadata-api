@@ -14,12 +14,14 @@ Base = declarative_base()
 
 class TimestampMixin:
     """Mixin for created_at and updated_at timestamps."""
+
     created_at: Mapped[datetime] = mapped_column(nullable=False)
     updated_at: Mapped[datetime] = mapped_column(nullable=False)
 
 
 class OrgScopedMixin:
     """Mixin for organization-scoped entities."""
+
     org_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         nullable=False,
@@ -30,6 +32,7 @@ class OrgScopedMixin:
 
 class AuditMixin:
     """Mixin for audit logging on mutations."""
+
     created_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         nullable=True,
@@ -44,6 +47,7 @@ class AuditMixin:
 
 class SoftDeleteMixin:
     """Mixin for soft delete functionality."""
+
     deleted_at: Mapped[datetime] = mapped_column(nullable=True)
     deleted_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -54,6 +58,7 @@ class SoftDeleteMixin:
 
 class BaseModel(Base, TimestampMixin):
     """Base model with common fields."""
+
     __abstract__ = True
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -66,6 +71,7 @@ class BaseModel(Base, TimestampMixin):
 # Enums
 class UserRole(str, enum.Enum):
     """User roles within a team."""
+
     ADMIN = "admin"
     MEMBER = "member"
     VIEWER = "viewer"
@@ -73,6 +79,7 @@ class UserRole(str, enum.Enum):
 
 class IncidentStatus(str, enum.Enum):
     """Incident status values."""
+
     OPEN = "open"
     IN_PROGRESS = "in_progress"
     RESOLVED = "resolved"
@@ -81,6 +88,7 @@ class IncidentStatus(str, enum.Enum):
 
 class IncidentPriority(str, enum.Enum):
     """Incident priority levels."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -89,6 +97,7 @@ class IncidentPriority(str, enum.Enum):
 
 class AgentType(str, enum.Enum):
     """Agent configuration types."""
+
     MONITORING = "monitoring"
     ALERTING = "alerting"
     AUTOMATION = "automation"
@@ -97,6 +106,7 @@ class AgentType(str, enum.Enum):
 # Models
 class Organization(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
     """Organization model."""
+
     __tablename__ = "organizations"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -110,6 +120,7 @@ class Organization(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
 
 class Team(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
     """Team model."""
+
     __tablename__ = "teams"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -131,6 +142,7 @@ class Team(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
 
 class User(BaseModel, TimestampMixin, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
     """User model for team members."""
+
     __tablename__ = "users"
 
     # Basic info
@@ -183,6 +195,7 @@ class User(BaseModel, TimestampMixin, OrgScopedMixin, AuditMixin, SoftDeleteMixi
 
 class Incident(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
     """Incident model."""
+
     __tablename__ = "incidents"
 
     title: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -221,12 +234,11 @@ class Incident(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
 
 class AgentConfig(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
     """Agent configuration model."""
+
     __tablename__ = "agent_configs"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    agent_type: Mapped[AgentType] = mapped_column(
-        Enum(AgentType), nullable=False
-    )
+    agent_type: Mapped[AgentType] = mapped_column(Enum(AgentType), nullable=False)
     config: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
@@ -241,6 +253,7 @@ class AgentConfig(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
 
 class Stats(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
     """Statistics model."""
+
     __tablename__ = "stats"
 
     metric_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -259,6 +272,7 @@ class Stats(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
 
 class Config(BaseModel, OrgScopedMixin, AuditMixin, SoftDeleteMixin):
     """Configuration model."""
+
     __tablename__ = "configs"
 
     key: Mapped[str] = mapped_column(String(255), nullable=False)

@@ -19,19 +19,23 @@ router = APIRouter()
 async def create_organization(
     org_data: OrganizationCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Create a new organization."""
 
     # Check if organization with same name/slug exists
-    existing_org = db.query(Organization).filter(
-        (Organization.name == org_data.name) | (Organization.slug == org_data.slug)
-    ).first()
+    existing_org = (
+        db.query(Organization)
+        .filter(
+            (Organization.name == org_data.name) | (Organization.slug == org_data.slug)
+        )
+        .first()
+    )
 
     if existing_org:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Organization with this name or slug already exists"
+            detail="Organization with this name or slug already exists",
         )
 
     # Create organization
@@ -52,7 +56,7 @@ async def create_organization(
         "Organization created",
         organization_id=organization.id,
         name=organization.name,
-        created_by=current_user.id
+        created_by=current_user.id,
     )
 
     return organization
@@ -62,7 +66,7 @@ async def create_organization(
 async def get_organization(
     org_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Get organization by ID."""
 
@@ -70,14 +74,13 @@ async def get_organization(
     if current_user.org_id != org_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this organization"
+            detail="Access denied to this organization",
         )
 
     organization = db.query(Organization).filter(Organization.id == org_id).first()
     if not organization:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Organization not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found"
         )
 
     return organization
@@ -88,7 +91,7 @@ async def update_organization(
     org_id: uuid.UUID,
     org_data: OrganizationUpdate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Update organization."""
 
@@ -96,14 +99,13 @@ async def update_organization(
     if current_user.org_id != org_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this organization"
+            detail="Access denied to this organization",
         )
 
     organization = db.query(Organization).filter(Organization.id == org_id).first()
     if not organization:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Organization not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found"
         )
 
     # Update fields
@@ -117,7 +119,7 @@ async def update_organization(
     logger.info(
         "Organization updated",
         organization_id=organization.id,
-        updated_by=current_user.id
+        updated_by=current_user.id,
     )
 
     return organization
@@ -125,15 +127,14 @@ async def update_organization(
 
 @router.get("/organizations", response_model=list[OrganizationResponse])
 async def list_organizations(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     """List organizations accessible to current user."""
 
     # For now, users can only see their own organization
     # In a multi-org setup, this would be more complex
-    organizations = db.query(Organization).filter(
-        Organization.id == current_user.org_id
-    ).all()
+    organizations = (
+        db.query(Organization).filter(Organization.id == current_user.org_id).all()
+    )
 
     return organizations

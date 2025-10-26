@@ -49,20 +49,22 @@ class CertificateManager:
                 path=self.vault_path
             )
 
-            secret_data = secret_response['data']['data']
+            secret_data = secret_response["data"]["data"]
             cert_content = secret_data.get(cert_type)
 
             if cert_content:
                 # Decode if base64 encoded
                 try:
-                    return base64.b64decode(cert_content).decode('utf-8')
+                    return base64.b64decode(cert_content).decode("utf-8")
                 except Exception:
                     return cert_content
 
             return None
 
         except ImportError as e:
-            raise RuntimeError("hvac package required for Vault integration. Install with: pip install hvac") from e
+            raise RuntimeError(
+                "hvac package required for Vault integration. Install with: pip install hvac"
+            ) from e
         except Exception as e:
             raise RuntimeError(f"Failed to get certificate from Vault: {e}") from e
 
@@ -71,7 +73,7 @@ class CertificateManager:
         cert_file_map = {
             "client_cert": "client.crt",
             "client_key": "client.key",
-            "ca_cert": "ca.crt"
+            "ca_cert": "ca.crt",
         }
 
         filename = cert_file_map.get(cert_type)
@@ -118,10 +120,12 @@ class CertificateManager:
                 (cert_dir / "client.crt").write_text(client_cert)
                 (cert_dir / "client.key").write_text(client_key)
 
-                ssl_config.update({
-                    "sslcert": str(cert_dir / "client.crt"),
-                    "sslkey": str(cert_dir / "client.key")
-                })
+                ssl_config.update(
+                    {
+                        "sslcert": str(cert_dir / "client.crt"),
+                        "sslkey": str(cert_dir / "client.key"),
+                    }
+                )
 
                 if ca_cert:
                     (cert_dir / "ca.crt").write_text(ca_cert)

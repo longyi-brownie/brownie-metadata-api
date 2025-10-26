@@ -7,6 +7,7 @@ import requests
 
 BASE_URL = "http://localhost:8080"
 
+
 def test_health():
     """Test health endpoint."""
     print("Testing health endpoint...")
@@ -19,6 +20,7 @@ def test_health():
     except Exception as e:
         print(f"Health check failed: {e}")
     return False
+
 
 def test_user_endpoints():
     """Test user endpoints."""
@@ -42,16 +44,17 @@ def test_user_endpoints():
     except Exception as e:
         print(f"List users failed: {e}")
 
+
 def test_auth_endpoints():
     """Test authentication endpoints."""
     print("\nTesting auth endpoints...")
 
     # Test login
     try:
-        response = requests.post(f"{BASE_URL}/api/v1/auth/login", json={
-            "email": "test@example.com",
-            "password": "testpassword123"
-        })
+        response = requests.post(
+            f"{BASE_URL}/api/v1/auth/login",
+            json={"email": "test@example.com", "password": "testpassword123"},
+        )
         print(f"Login status: {response.status_code}")
         print(f"Login response: {response.text}")
     except Exception as e:
@@ -59,18 +62,22 @@ def test_auth_endpoints():
 
     # Test signup
     try:
-        response = requests.post(f"{BASE_URL}/api/v1/auth/signup", json={
-            "email": "newuser@example.com",
-            "password": "newpassword123",
-            "username": "newuser",
-            "full_name": "New User",
-            "organization_name": "New Organization",
-            "team_name": "New Team"
-        })
+        response = requests.post(
+            f"{BASE_URL}/api/v1/auth/signup",
+            json={
+                "email": "newuser@example.com",
+                "password": "newpassword123",
+                "username": "newuser",
+                "full_name": "New User",
+                "organization_name": "New Organization",
+                "team_name": "New Team",
+            },
+        )
         print(f"Signup status: {response.status_code}")
         print(f"Signup response: {response.text}")
     except Exception as e:
         print(f"Signup failed: {e}")
+
 
 if __name__ == "__main__":
     print("Testing FastAPI User CRUD Endpoints")

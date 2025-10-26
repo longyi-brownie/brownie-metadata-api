@@ -35,7 +35,7 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(),
     ],
     context_class=dict,
     logger_factory=structlog.stdlib.LoggerFactory(),
@@ -47,15 +47,11 @@ logger = structlog.get_logger(__name__)
 
 # Prometheus metrics
 REQUEST_COUNT = Counter(
-    'http_requests_total',
-    'Total HTTP requests',
-    ['method', 'endpoint', 'status_code']
+    "http_requests_total", "Total HTTP requests", ["method", "endpoint", "status_code"]
 )
 
 REQUEST_DURATION = Histogram(
-    'http_request_duration_seconds',
-    'HTTP request duration',
-    ['method', 'endpoint']
+    "http_request_duration_seconds", "HTTP request duration", ["method", "endpoint"]
 )
 
 
@@ -107,13 +103,12 @@ async def metrics_middleware(request, call_next):
     REQUEST_COUNT.labels(
         method=request.method,
         endpoint=request.url.path,
-        status_code=response.status_code
+        status_code=response.status_code,
     ).inc()
 
-    REQUEST_DURATION.labels(
-        method=request.method,
-        endpoint=request.url.path
-    ).observe(duration)
+    REQUEST_DURATION.labels(method=request.method, endpoint=request.url.path).observe(
+        duration
+    )
 
     # Log request
     logger.info(
@@ -137,6 +132,7 @@ async def health_check():
         from sqlalchemy import text
 
         from .db import engine
+
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         db_status = "healthy"
@@ -187,12 +183,13 @@ async def global_exception_handler(request, exc):
         content={
             "detail": "Internal server error",
             "type": "internal_error",
-        }
+        },
     )
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "app.main:app",
         host=settings.host,

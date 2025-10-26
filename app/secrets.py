@@ -71,8 +71,8 @@ class SecretsManager:
                 path=f"{vault_path}/{key}"
             )
 
-            secret_data = secret_response['data']['data']
-            return secret_data.get('value')
+            secret_data = secret_response["data"]["data"]
+            return secret_data.get("value")
 
         except ImportError:
             logger.warning("hvac package not installed - Vault integration disabled")
@@ -96,7 +96,7 @@ class SecretsManager:
 
     def generate_jwt_secret(self) -> str:
         """Generate a cryptographically secure JWT secret."""
-        return base64.b64encode(secrets.token_bytes(32)).decode('utf-8')
+        return base64.b64encode(secrets.token_bytes(32)).decode("utf-8")
 
     def generate_database_password(self, length: int = 32) -> str:
         """Generate a secure database password."""
@@ -117,7 +117,7 @@ class SecretsManager:
             "test",
             "default",
             "changeme",
-            "brownie:brownie"
+            "brownie:brownie",
         ]
 
         secret_lower = secret.lower()

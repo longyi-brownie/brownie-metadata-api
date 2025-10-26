@@ -16,7 +16,9 @@ def test_create_team(client: TestClient, test_user_data, test_team_data):
 
     # Create team
     team_data = {**test_team_data, "organization_id": org_id}
-    response = client.post(f"/api/v1/organizations/{org_id}/teams", json=team_data, headers=headers)
+    response = client.post(
+        f"/api/v1/organizations/{org_id}/teams", json=team_data, headers=headers
+    )
     assert response.status_code == 200
 
     data = response.json()
@@ -41,10 +43,14 @@ def test_create_team_duplicate_name(client: TestClient, test_user_data, test_tea
 
     # Create first team
     team_data = {**test_team_data, "organization_id": org_id}
-    client.post(f"/api/v1/organizations/{org_id}/teams", json=team_data, headers=headers)
+    client.post(
+        f"/api/v1/organizations/{org_id}/teams", json=team_data, headers=headers
+    )
 
     # Try to create second team with same name
-    response = client.post(f"/api/v1/organizations/{org_id}/teams", json=team_data, headers=headers)
+    response = client.post(
+        f"/api/v1/organizations/{org_id}/teams", json=team_data, headers=headers
+    )
     assert response.status_code == 400
     assert "already exists" in response.json()["detail"]
 
@@ -62,7 +68,9 @@ def test_list_teams(client: TestClient, test_user_data, test_team_data):
 
     # Create team
     team_data = {**test_team_data, "organization_id": org_id}
-    client.post(f"/api/v1/organizations/{org_id}/teams", json=team_data, headers=headers)
+    client.post(
+        f"/api/v1/organizations/{org_id}/teams", json=team_data, headers=headers
+    )
 
     # List teams
     response = client.get(f"/api/v1/organizations/{org_id}/teams", headers=headers)
@@ -87,7 +95,9 @@ def test_get_team(client: TestClient, test_user_data, test_team_data):
 
     # Create team
     team_data = {**test_team_data, "organization_id": org_id}
-    create_response = client.post(f"/api/v1/organizations/{org_id}/teams", json=team_data, headers=headers)
+    create_response = client.post(
+        f"/api/v1/organizations/{org_id}/teams", json=team_data, headers=headers
+    )
     team_id = create_response.json()["id"]
 
     # Get team
@@ -112,14 +122,13 @@ def test_update_team(client: TestClient, test_user_data, test_team_data):
 
     # Create team
     team_data = {**test_team_data, "organization_id": org_id}
-    create_response = client.post(f"/api/v1/organizations/{org_id}/teams", json=team_data, headers=headers)
+    create_response = client.post(
+        f"/api/v1/organizations/{org_id}/teams", json=team_data, headers=headers
+    )
     team_id = create_response.json()["id"]
 
     # Update team
-    update_data = {
-        "name": "Updated Team",
-        "description": "Updated description"
-    }
+    update_data = {"name": "Updated Team", "description": "Updated description"}
     response = client.put(f"/api/v1/teams/{team_id}", json=update_data, headers=headers)
     assert response.status_code == 200
 
@@ -141,7 +150,9 @@ def test_add_team_member(client: TestClient, test_user_data, test_team_data):
 
     # Create team
     team_data = {**test_team_data, "organization_id": org_id}
-    create_response = client.post(f"/api/v1/organizations/{org_id}/teams", json=team_data, headers=headers)
+    create_response = client.post(
+        f"/api/v1/organizations/{org_id}/teams", json=team_data, headers=headers
+    )
     team_id = create_response.json()["id"]
 
     # Create another user
@@ -151,17 +162,21 @@ def test_add_team_member(client: TestClient, test_user_data, test_team_data):
         "username": "user2",
         "full_name": "User 2",
         "organization_name": "Test Organization",
-        "team_name": "Test Team"
+        "team_name": "Test Team",
     }
     signup_response2 = client.post("/api/v1/auth/signup", json=user2_data)
-    user2_id = signup_response2.json()["access_token"]  # This would need to be extracted from token
+    user2_id = signup_response2.json()[
+        "access_token"
+    ]  # This would need to be extracted from token
 
     # Add team member
     member_data = {
         "user_id": user2_id,  # This would need to be the actual user ID
-        "role": "member"
+        "role": "member",
     }
-    response = client.post(f"/api/v1/teams/{team_id}/members", json=member_data, headers=headers)
+    response = client.post(
+        f"/api/v1/teams/{team_id}/members", json=member_data, headers=headers
+    )
     # This test would need proper user ID extraction from JWT token
     # For now, just test that the endpoint exists
     assert response.status_code in [200, 400, 404]  # Depending on implementation

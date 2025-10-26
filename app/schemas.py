@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 # Enums
 class UserRole(str, Enum):
     """User roles within a team."""
+
     ADMIN = "admin"
     MEMBER = "member"
     VIEWER = "viewer"
@@ -18,6 +19,7 @@ class UserRole(str, Enum):
 
 class IncidentStatus(str, Enum):
     """Incident status values."""
+
     OPEN = "open"
     IN_PROGRESS = "in_progress"
     RESOLVED = "resolved"
@@ -27,6 +29,7 @@ class IncidentStatus(str, Enum):
 
 class IncidentPriority(str, Enum):
     """Incident priority levels."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -35,6 +38,7 @@ class IncidentPriority(str, Enum):
 
 class AgentType(str, Enum):
     """Agent types."""
+
     INCIDENT_RESPONSE = "incident_response"
     MONITORING = "monitoring"
     ANALYSIS = "analysis"
@@ -98,6 +102,7 @@ class OrganizationBase(BaseSchema):
 
 class OrganizationCreate(OrganizationBase):
     """Schema for creating an organization."""
+
     pass
 
 
@@ -105,7 +110,9 @@ class OrganizationUpdate(BaseSchema):
     """Schema for updating an organization."""
 
     name: str | None = Field(None, min_length=1, max_length=255)
-    slug: str | None = Field(None, min_length=1, max_length=100, pattern=r"^[a-z0-9-]+$")
+    slug: str | None = Field(
+        None, min_length=1, max_length=100, pattern=r"^[a-z0-9-]+$"
+    )
     description: str | None = None
     is_active: bool | None = None
     max_teams: int | None = Field(None, ge=1)
@@ -139,7 +146,9 @@ class TeamUpdate(BaseSchema):
     """Schema for updating a team."""
 
     name: str | None = Field(None, min_length=1, max_length=255)
-    slug: str | None = Field(None, min_length=1, max_length=100, pattern=r"^[a-z0-9-]+$")
+    slug: str | None = Field(
+        None, min_length=1, max_length=100, pattern=r"^[a-z0-9-]+$"
+    )
     description: str | None = None
     is_active: bool | None = None
     permissions: dict[str, Any] | None = None
@@ -160,7 +169,9 @@ class UserBase(BaseSchema):
     """Base user schema."""
 
     email: str = Field(..., pattern=r"^[^@]+@[^@]+\.[^@]+$")
-    username: str = Field(..., min_length=3, max_length=100, pattern=r"^[a-zA-Z0-9_-]+$")
+    username: str = Field(
+        ..., min_length=3, max_length=100, pattern=r"^[a-zA-Z0-9_-]+$"
+    )
     full_name: str | None = Field(None, max_length=255)
     avatar_url: str | None = Field(None, max_length=500)
     is_active: bool = True
@@ -181,7 +192,9 @@ class UserUpdate(BaseSchema):
     """Schema for updating a user."""
 
     email: str | None = Field(None, pattern=r"^[^@]+@[^@]+\.[^@]+$")
-    username: str | None = Field(None, min_length=3, max_length=100, pattern=r"^[a-zA-Z0-9_-]+$")
+    username: str | None = Field(
+        None, min_length=3, max_length=100, pattern=r"^[a-zA-Z0-9_-]+$"
+    )
     full_name: str | None = Field(None, max_length=255)
     avatar_url: str | None = Field(None, max_length=500)
     is_active: bool | None = None
@@ -390,7 +403,9 @@ class SignupRequest(BaseSchema):
 
     email: str = Field(..., pattern=r"^[^@]+@[^@]+\.[^@]+$")
     password: str = Field(..., min_length=8)
-    username: str = Field(..., min_length=3, max_length=100, pattern=r"^[a-zA-Z0-9_-]+$")
+    username: str = Field(
+        ..., min_length=3, max_length=100, pattern=r"^[a-zA-Z0-9_-]+$"
+    )
     full_name: str | None = Field(None, max_length=255)
     organization_name: str = Field(..., min_length=1, max_length=255)
     team_name: str = Field(..., min_length=1, max_length=255)

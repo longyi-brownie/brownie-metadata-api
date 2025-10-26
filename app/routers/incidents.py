@@ -28,7 +28,7 @@ async def create_incident(
     team_id: uuid.UUID,
     incident_data: IncidentCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Create a new incident (editor/admin only)."""
 
@@ -36,29 +36,29 @@ async def create_incident(
     team = db.query(Team).filter(Team.id == team_id).first()
     if not team:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Team not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Team not found"
         )
 
     # Check team membership
     if current_user.team_id != team_id:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not a member of this team"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of this team"
         )
 
     # Check role permissions (editor/admin only)
     if current_user.role.value not in {"editor", "admin"}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions. Editor or admin role required."
+            detail="Insufficient permissions. Editor or admin role required.",
         )
 
     # Check for idempotency key if provided
     if incident_data.idempotency_key:
-        existing_incident = db.query(Incident).filter(
-            Incident.idempotency_key == incident_data.idempotency_key
-        ).first()
+        existing_incident = (
+            db.query(Incident)
+            .filter(Incident.idempotency_key == incident_data.idempotency_key)
+            .first()
+        )
 
         if existing_incident:
             return existing_incident
@@ -94,7 +94,7 @@ async def create_incident(
         title=incident.title,
         status=incident.status.value,
         team_id=team_id,
-        created_by=current_user.id
+        created_by=current_user.id,
     )
 
     return incident
@@ -105,15 +105,14 @@ async def list_incidents(
     team_id: uuid.UUID,
     params: IncidentListParams = Depends(),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """List incidents for a team with filters and pagination (viewer/editor/admin)."""
 
     # Check team membership
     if current_user.team_id != team_id:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not a member of this team"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of this team"
         )
 
     query = db.query(Incident).filter(Incident.team_id == team_id)
@@ -134,7 +133,7 @@ async def list_incidents(
         query = query.filter(
             or_(
                 Incident.title.ilike(search_term),
-                Incident.description.ilike(search_term)
+                Incident.description.ilike(search_term),
             )
         )
 
@@ -145,8 +144,7 @@ async def list_incidents(
             query = query.filter(Incident.id > cursor_id)
         except ValueError as e:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid cursor format"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid cursor format"
             ) from e
 
     # Get incidents
@@ -161,9 +159,7 @@ async def list_incidents(
     next_cursor = str(incidents[-1].id) if incidents and has_more else None
 
     return PaginatedResponse(
-        items=incidents,
-        next_cursor=next_cursor,
-        has_more=has_more
+        items=incidents, next_cursor=next_cursor, has_more=has_more
     )
 
 
@@ -171,22 +167,20 @@ async def list_incidents(
 async def get_incident(
     incident_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Get incident by ID."""
 
     incident = db.query(Incident).filter(Incident.id == incident_id).first()
     if not incident:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Incident not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found"
         )
 
     # Check team membership
     if current_user.team_id != incident.team_id:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not a member of this team"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of this team"
         )
 
     return incident
@@ -197,29 +191,27 @@ async def update_incident(
     incident_id: uuid.UUID,
     incident_data: IncidentUpdate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Update incident (editor/admin only)."""
 
     incident = db.query(Incident).filter(Incident.id == incident_id).first()
     if not incident:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Incident not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found"
         )
 
     # Check team membership
     if current_user.team_id != incident.team_id:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not a member of this team"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of this team"
         )
 
     # Check role permissions (editor/admin only)
     if current_user.role.value not in {"editor", "admin"}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions. Editor or admin role required."
+            detail="Insufficient permissions. Editor or admin role required.",
         )
 
     # Update fields
@@ -257,7 +249,7 @@ async def update_incident(
         "Incident updated",
         incident_id=incident.id,
         status=incident.status.value,
-        updated_by=current_user.id
+        updated_by=current_user.id,
     )
 
     return incident
@@ -267,38 +259,32 @@ async def update_incident(
 async def delete_incident(
     incident_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Delete incident (admin only)."""
 
     incident = db.query(Incident).filter(Incident.id == incident_id).first()
     if not incident:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Incident not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found"
         )
 
     # Check team membership
     if current_user.team_id != incident.team_id:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not a member of this team"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of this team"
         )
 
     # Check role permissions (admin only)
     if current_user.role.value != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions. Admin role required."
+            detail="Insufficient permissions. Admin role required.",
         )
 
     db.delete(incident)
     db.commit()
 
-    logger.info(
-        "Incident deleted",
-        incident_id=incident.id,
-        deleted_by=current_user.id
-    )
+    logger.info("Incident deleted", incident_id=incident.id, deleted_by=current_user.id)
 
     return {"message": "Incident deleted successfully"}

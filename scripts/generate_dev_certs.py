@@ -16,11 +16,7 @@ def run_command(cmd: list, cwd: Path = None) -> tuple[bool, str]:
     """Run a command and return success status and output."""
     try:
         result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            check=True,
-            cwd=cwd
+            cmd, capture_output=True, text=True, check=True, cwd=cwd
         )
         return True, result.stdout
     except subprocess.CalledProcessError as e:
@@ -32,9 +28,9 @@ def generate_ca_certificate(cert_dir: Path) -> bool:
     print("Generating CA certificate...")
 
     # Create CA private key
-    success, output = run_command([
-        "openssl", "genrsa", "-out", "ca.key", "4096"
-    ], cwd=cert_dir)
+    success, output = run_command(
+        ["openssl", "genrsa", "-out", "ca.key", "4096"], cwd=cert_dir
+    )
 
     if not success:
         print(f"Failed to generate CA key: {output}")
@@ -65,10 +61,23 @@ authorityKeyIdentifier = keyid:always,issuer
     config_file = cert_dir / "ca.conf"
     config_file.write_text(ca_config)
 
-    success, output = run_command([
-        "openssl", "req", "-new", "-x509", "-days", "3650",
-        "-key", "ca.key", "-out", "ca.crt", "-config", "ca.conf"
-    ], cwd=cert_dir)
+    success, output = run_command(
+        [
+            "openssl",
+            "req",
+            "-new",
+            "-x509",
+            "-days",
+            "3650",
+            "-key",
+            "ca.key",
+            "-out",
+            "ca.crt",
+            "-config",
+            "ca.conf",
+        ],
+        cwd=cert_dir,
+    )
 
     if not success:
         print(f"Failed to generate CA certificate: {output}")
@@ -83,9 +92,9 @@ def generate_client_certificate(cert_dir: Path) -> bool:
     print("Generating client certificate...")
 
     # Create client private key
-    success, output = run_command([
-        "openssl", "genrsa", "-out", "client.key", "2048"
-    ], cwd=cert_dir)
+    success, output = run_command(
+        ["openssl", "genrsa", "-out", "client.key", "2048"], cwd=cert_dir
+    )
 
     if not success:
         print(f"Failed to generate client key: {output}")
@@ -120,22 +129,49 @@ IP.1 = 127.0.0.1
     config_file = cert_dir / "client.conf"
     config_file.write_text(client_config)
 
-    success, output = run_command([
-        "openssl", "req", "-new", "-key", "client.key",
-        "-out", "client.csr", "-config", "client.conf"
-    ], cwd=cert_dir)
+    success, output = run_command(
+        [
+            "openssl",
+            "req",
+            "-new",
+            "-key",
+            "client.key",
+            "-out",
+            "client.csr",
+            "-config",
+            "client.conf",
+        ],
+        cwd=cert_dir,
+    )
 
     if not success:
         print(f"Failed to generate client CSR: {output}")
         return False
 
     # Sign client certificate with CA
-    success, output = run_command([
-        "openssl", "x509", "-req", "-in", "client.csr",
-        "-CA", "ca.crt", "-CAkey", "ca.key", "-CAcreateserial",
-        "-out", "client.crt", "-days", "365",
-        "-extensions", "v3_req", "-extfile", "client.conf"
-    ], cwd=cert_dir)
+    success, output = run_command(
+        [
+            "openssl",
+            "x509",
+            "-req",
+            "-in",
+            "client.csr",
+            "-CA",
+            "ca.crt",
+            "-CAkey",
+            "ca.key",
+            "-CAcreateserial",
+            "-out",
+            "client.crt",
+            "-days",
+            "365",
+            "-extensions",
+            "v3_req",
+            "-extfile",
+            "client.conf",
+        ],
+        cwd=cert_dir,
+    )
 
     if not success:
         print(f"Failed to sign client certificate: {output}")
@@ -155,6 +191,7 @@ def setup_postgresql_certificates(cert_dir: Path) -> bool:
 
     # Copy certificates to PostgreSQL directory
     import shutil
+
     shutil.copy2(cert_dir / "ca.crt", pg_cert_dir / "ca.crt")
     shutil.copy2(cert_dir / "client.crt", pg_cert_dir / "client.crt")
     shutil.copy2(cert_dir / "client.key", pg_cert_dir / "client.key")
@@ -165,7 +202,9 @@ def setup_postgresql_certificates(cert_dir: Path) -> bool:
     os.chmod(pg_cert_dir / "ca.crt", 0o644)
 
     print(f"✓ PostgreSQL certificates copied to {pg_cert_dir}")
-    print(f"  Update your PostgreSQL configuration to use certificates from: {pg_cert_dir}")
+    print(
+        f"  Update your PostgreSQL configuration to use certificates from: {pg_cert_dir}"
+    )
 
     return True
 
@@ -205,7 +244,9 @@ def main():
 
     print("\n✅ Development certificates generated successfully!")
     print("\n📋 Next steps:")
-    print("1. Update your PostgreSQL configuration to use client certificate authentication")
+    print(
+        "1. Update your PostgreSQL configuration to use client certificate authentication"
+    )
     print("2. Set LOCAL_CERT_DIR=dev-certs in your environment")
     print("3. Update METADATA_POSTGRES_DSN to use certificate authentication")
     print("\n🔧 Example PostgreSQL configuration:")
@@ -215,7 +256,9 @@ def main():
     print("   ssl_ca_file = '/tmp/pg-certs/ca.crt'")
     print("   ssl_cert_file = 'client'")
     print("\n🔧 Example DSN:")
-    print("   postgresql://brownie-fastapi-server@localhost:5432/brownie_metadata?sslmode=require&sslcert=dev-certs/client.crt&sslkey=dev-certs/client.key&sslrootcert=dev-certs/ca.crt")
+    print(
+        "   postgresql://brownie-fastapi-server@localhost:5432/brownie_metadata?sslmode=require&sslcert=dev-certs/client.crt&sslkey=dev-certs/client.key&sslrootcert=dev-certs/ca.crt"
+    )
 
 
 if __name__ == "__main__":

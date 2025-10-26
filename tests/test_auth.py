@@ -33,7 +33,7 @@ def test_login_success(client: TestClient, test_user_data):
     # Then login
     login_data = {
         "email": test_user_data["email"],
-        "password": test_user_data["password"]
+        "password": test_user_data["password"],
     }
     response = client.post("/api/v1/auth/login", json=login_data)
     assert response.status_code == 200
@@ -50,10 +50,7 @@ def test_login_invalid_credentials(client: TestClient, test_user_data):
     client.post("/api/v1/auth/signup", json=test_user_data)
 
     # Login with wrong password
-    login_data = {
-        "email": test_user_data["email"],
-        "password": "wrongpassword"
-    }
+    login_data = {"email": test_user_data["email"], "password": "wrongpassword"}
     response = client.post("/api/v1/auth/login", json=login_data)
     assert response.status_code == 401
     assert "Incorrect email or password" in response.json()["detail"]
@@ -61,10 +58,7 @@ def test_login_invalid_credentials(client: TestClient, test_user_data):
 
 def test_login_nonexistent_user(client: TestClient):
     """Test login with nonexistent user fails."""
-    login_data = {
-        "email": "nonexistent@example.com",
-        "password": "password123"
-    }
+    login_data = {"email": "nonexistent@example.com", "password": "password123"}
     response = client.post("/api/v1/auth/login", json=login_data)
     assert response.status_code == 401
     assert "Incorrect email or password" in response.json()["detail"]

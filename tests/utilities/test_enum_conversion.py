@@ -3,7 +3,9 @@
 
 import os
 
-os.environ['METADATA_POSTGRES_DSN'] = "postgresql://brownie-fastapi-server@localhost:5432/brownie_metadata?sslmode=require&sslcert=../brownie-metadata-database/dev-certs/client.crt&sslkey=../brownie-metadata-database/dev-certs/client.key&sslrootcert=../brownie-metadata-database/dev-certs/ca.crt"
+os.environ["METADATA_POSTGRES_DSN"] = (
+    "postgresql://brownie-fastapi-server@localhost:5432/brownie_metadata?sslmode=require&sslcert=../brownie-metadata-database/dev-certs/client.crt&sslkey=../brownie-metadata-database/dev-certs/client.key&sslrootcert=../brownie-metadata-database/dev-certs/ca.crt"
+)
 
 
 from app.db import get_db
@@ -20,7 +22,7 @@ def test_enum_conversion():
 
     try:
         # Get user from database
-        user = db.query(User).filter(User.email == 'test@example.com').first()
+        user = db.query(User).filter(User.email == "test@example.com").first()
         if not user:
             print("❌ User not found in database")
             return
@@ -39,14 +41,17 @@ def test_enum_conversion():
         except Exception as e:
             print(f"❌ UserResponse conversion failed: {e}")
             import traceback
+
             traceback.print_exc()
 
     except Exception as e:
         print(f"❌ Database error: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     test_enum_conversion()

@@ -22,18 +22,11 @@ class SecurityValidator:
 
     def add_issue(self, severity: str, message: str, fix: str = None):
         """Add a security issue."""
-        self.issues.append({
-            "severity": severity,
-            "message": message,
-            "fix": fix
-        })
+        self.issues.append({"severity": severity, "message": message, "fix": fix})
 
     def add_warning(self, message: str, fix: str = None):
         """Add a security warning."""
-        self.warnings.append({
-            "message": message,
-            "fix": fix
-        })
+        self.warnings.append({"message": message, "fix": fix})
 
     def check_jwt_secret(self):
         """Check JWT secret security."""
@@ -43,7 +36,7 @@ class SecurityValidator:
             self.add_issue(
                 "CRITICAL",
                 "JWT secret not set",
-                "Set METADATA_JWT_SECRET environment variable"
+                "Set METADATA_JWT_SECRET environment variable",
             )
             return
 
@@ -51,7 +44,7 @@ class SecurityValidator:
             self.add_issue(
                 "CRITICAL",
                 "JWT secret is still the default value",
-                "Generate a strong secret with: openssl rand -base64 32"
+                "Generate a strong secret with: openssl rand -base64 32",
             )
             return
 
@@ -59,7 +52,7 @@ class SecurityValidator:
             self.add_issue(
                 "HIGH",
                 f"JWT secret is too short ({len(jwt_secret)} chars, need 32+)",
-                "Generate a longer secret with: openssl rand -base64 32"
+                "Generate a longer secret with: openssl rand -base64 32",
             )
 
         # Check for weak patterns
@@ -70,7 +63,7 @@ class SecurityValidator:
                 self.add_issue(
                     "MEDIUM",
                     f"JWT secret contains weak pattern: {pattern}",
-                    "Use a cryptographically random secret"
+                    "Use a cryptographically random secret",
                 )
                 break
 
@@ -82,19 +75,22 @@ class SecurityValidator:
             self.add_issue(
                 "HIGH",
                 "Using default database credentials",
-                "Change database password in production"
+                "Change database password in production",
             )
 
         if "sslmode=require" not in dsn and "sslmode=verify-full" not in dsn:
             self.add_warning(
                 "Database connection not using SSL",
-                "Add ?sslmode=require to DSN for encrypted connections"
+                "Add ?sslmode=require to DSN for encrypted connections",
             )
 
-        if "sslcert=" not in dsn and os.getenv("VAULT_ENABLED", "false").lower() == "true":
+        if (
+            "sslcert=" not in dsn
+            and os.getenv("VAULT_ENABLED", "false").lower() == "true"
+        ):
             self.add_warning(
                 "Vault enabled but no client certificates in DSN",
-                "Configure client certificate authentication"
+                "Configure client certificate authentication",
             )
 
     def check_cors_configuration(self):
@@ -105,13 +101,13 @@ class SecurityValidator:
             self.add_issue(
                 "HIGH",
                 "CORS allows all origins (*)",
-                "Restrict CORS to specific domains in production"
+                "Restrict CORS to specific domains in production",
             )
 
         if not cors_origins:
             self.add_warning(
                 "CORS origins not configured",
-                "Set METADATA_CORS_ORIGINS environment variable"
+                "Set METADATA_CORS_ORIGINS environment variable",
             )
 
     def check_debug_mode(self):
@@ -123,19 +119,12 @@ class SecurityValidator:
             self.add_issue(
                 "CRITICAL",
                 "Debug mode enabled in production",
-                "Set METADATA_DEBUG=false in production"
+                "Set METADATA_DEBUG=false in production",
             )
 
     def check_file_permissions(self):
         """Check file permissions for sensitive files."""
-        sensitive_files = [
-            ".env",
-            "dev-certs/",
-            "secrets/",
-            "*.key",
-            "*.crt",
-            "*.pem"
-        ]
+        sensitive_files = [".env", "dev-certs/", "secrets/", "*.key", "*.crt", "*.pem"]
 
         for pattern in sensitive_files:
             if "*" in pattern:
@@ -159,7 +148,7 @@ class SecurityValidator:
                 self.add_issue(
                     "MEDIUM",
                     f"File {file_path} is readable by others",
-                    f"Run: chmod 600 {file_path}"
+                    f"Run: chmod 600 {file_path}",
                 )
         except Exception:
             pass
@@ -172,7 +161,7 @@ class SecurityValidator:
             self.add_issue(
                 "CRITICAL",
                 ".gitignore file not found",
-                "Create .gitignore file to prevent committing secrets"
+                "Create .gitignore file to prevent committing secrets",
             )
             return
 
@@ -184,7 +173,7 @@ class SecurityValidator:
             "*.crt",
             "*.pem",
             "secrets/",
-            "dev-certs/"
+            "dev-certs/",
         ]
 
         for pattern in required_patterns:
@@ -192,7 +181,7 @@ class SecurityValidator:
                 self.add_issue(
                     "HIGH",
                     f"Pattern '{pattern}' not in .gitignore",
-                    f"Add '{pattern}' to .gitignore"
+                    f"Add '{pattern}' to .gitignore",
                 )
 
     def check_environment_files(self):
@@ -204,12 +193,12 @@ class SecurityValidator:
                 self.add_issue(
                     "CRITICAL",
                     f"Environment file {env_file} exists (should be in .gitignore)",
-                    f"Add {env_file} to .gitignore and remove from git"
+                    f"Add {env_file} to .gitignore and remove from git",
                 )
 
     def generate_secure_jwt_secret(self) -> str:
         """Generate a secure JWT secret."""
-        return base64.b64encode(secrets.token_bytes(32)).decode('utf-8')
+        return base64.b64encode(secrets.token_bytes(32)).decode("utf-8")
 
     def run_all_checks(self):
         """Run all security checks."""
@@ -241,7 +230,7 @@ class SecurityValidator:
                     "CRITICAL": "🔴",
                     "HIGH": "🟠",
                     "MEDIUM": "🟡",
-                    "LOW": "🟢"
+                    "LOW": "🟢",
                 }.get(issue["severity"], "⚪")
 
                 print(f"{severity_icon} {issue['severity']}: {issue['message']}")
@@ -287,7 +276,9 @@ def main():
     # Offer to generate JWT secret if needed
     if not os.getenv("METADATA_JWT_SECRET"):
         print("\n🔑 Generate JWT secret:")
-        print(f"   export METADATA_JWT_SECRET='{validator.generate_secure_jwt_secret()}'")
+        print(
+            f"   export METADATA_JWT_SECRET='{validator.generate_secure_jwt_secret()}'"
+        )
 
 
 if __name__ == "__main__":

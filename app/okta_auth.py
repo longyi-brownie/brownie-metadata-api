@@ -54,7 +54,7 @@ class OktaClient:
         if not self.enabled:
             raise HTTPException(
                 status_code=status.HTTP_501_NOT_IMPLEMENTED,
-                detail="Okta OIDC not configured"
+                detail="Okta OIDC not configured",
             )
 
         params = {
@@ -73,7 +73,7 @@ class OktaClient:
         if not self.enabled:
             raise HTTPException(
                 status_code=status.HTTP_501_NOT_IMPLEMENTED,
-                detail="Okta OIDC not configured"
+                detail="Okta OIDC not configured",
             )
 
         data = {
@@ -88,14 +88,16 @@ class OktaClient:
             response = await client.post(
                 self.token_endpoint,
                 data=data,
-                headers={"Content-Type": "application/x-www-form-urlencoded"}
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
 
             if response.status_code != 200:
-                logger.error("Failed to exchange code for token", status=response.status_code)
+                logger.error(
+                    "Failed to exchange code for token", status=response.status_code
+                )
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Failed to exchange authorization code"
+                    detail="Failed to exchange authorization code",
                 )
 
             return response.json()
@@ -105,20 +107,20 @@ class OktaClient:
         if not self.enabled:
             raise HTTPException(
                 status_code=status.HTTP_501_NOT_IMPLEMENTED,
-                detail="Okta OIDC not configured"
+                detail="Okta OIDC not configured",
             )
 
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 self.userinfo_endpoint,
-                headers={"Authorization": f"Bearer {access_token}"}
+                headers={"Authorization": f"Bearer {access_token}"},
             )
 
             if response.status_code != 200:
                 logger.error("Failed to get user info", status=response.status_code)
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Failed to get user information"
+                    detail="Failed to get user information",
                 )
 
             return response.json()
@@ -128,7 +130,7 @@ class OktaClient:
         if not self.enabled:
             raise HTTPException(
                 status_code=status.HTTP_501_NOT_IMPLEMENTED,
-                detail="Okta OIDC not configured"
+                detail="Okta OIDC not configured",
             )
 
         try:
@@ -136,14 +138,13 @@ class OktaClient:
             # For now, we'll just decode it (not recommended for production)
             payload = jwt.decode(
                 id_token,
-                options={"verify_signature": False}  # Disable for development
+                options={"verify_signature": False},  # Disable for development
             )
             return payload
         except JWTError as e:
             logger.error("Failed to verify ID token", error=str(e))
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid ID token"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid ID token"
             ) from e
 
 
@@ -151,16 +152,13 @@ class OktaClient:
 okta_client = OktaClient()
 
 
-async def get_or_create_okta_user(
-    user_info: dict[str, Any],
-    db: Session
-) -> User:
+async def get_or_create_okta_user(user_info: dict[str, Any], db: Session) -> User:
     """Get or create user from Okta user info."""
     email = user_info.get("email")
     if not email:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email not found in user info"
+            detail="Email not found in user info",
         )
 
     # Check if user exists
@@ -235,6 +233,7 @@ def create_okta_token(user: User) -> str:
     }
 
     from .auth import create_access_token
+
     return create_access_token(token_data)
 
 
@@ -245,7 +244,7 @@ async def okta_login(request: Request):
     if not okta_client.enabled:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="Okta OIDC not configured"
+            detail="Okta OIDC not configured",
         )
 
     # Generate state parameter for CSRF protection
@@ -256,32 +255,25 @@ async def okta_login(request: Request):
 
     auth_url = okta_client.get_authorization_url(state)
 
-    return {
-        "authorization_url": auth_url,
-        "state": state
-    }
+    return {"authorization_url": auth_url, "state": state}
 
 
 @okta_router.get("/callback")
 async def okta_callback(
-    code: str,
-    state: str,
-    request: Request,
-    db: Session = Depends(get_db)
+    code: str, state: str, request: Request, db: Session = Depends(get_db)
 ):
     """Handle Okta OIDC callback."""
     if not okta_client.enabled:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="Okta OIDC not configured"
+            detail="Okta OIDC not configured",
         )
 
     # Verify state parameter
     stored_state = request.session.get("okta_state")
     if not stored_state or stored_state != state:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid state parameter"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid state parameter"
         )
 
     try:
@@ -292,7 +284,7 @@ async def okta_callback(
         if not access_token:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No access token received"
+                detail="No access token received",
             )
 
         # Get user info
@@ -307,31 +299,28 @@ async def okta_callback(
         return TokenResponse(
             access_token=jwt_token,
             token_type="bearer",
-            expires_in=settings.jwt_expires_minutes * 60
+            expires_in=settings.jwt_expires_minutes * 60,
         )
 
     except Exception as e:
         logger.error("Okta callback failed", error=str(e))
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Authentication failed"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Authentication failed"
         ) from e
 
 
 @okta_router.get("/userinfo")
 async def okta_userinfo(
     credentials: HTTPAuthorizationCredentials = Depends(okta_security),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Get user information from Okta token."""
     if not okta_client.enabled:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="Okta OIDC not configured"
+            detail="Okta OIDC not configured",
         )
 
     # This would typically verify the Okta access token
     # For now, we'll just return a placeholder
-    return {
-        "message": "Okta userinfo endpoint - implement token verification"
-    }
+    return {"message": "Okta userinfo endpoint - implement token verification"}

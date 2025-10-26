@@ -7,16 +7,17 @@ import requests
 
 BASE_URL = "http://localhost:8080"
 
+
 def debug_user_endpoints():
     """Debug the failing user endpoints."""
     print("=== Debugging User Endpoints ===")
 
     # Get token
     print("1. Getting authentication token...")
-    login_response = requests.post(f"{BASE_URL}/api/v1/auth/login", json={
-        "email": "test@example.com",
-        "password": "testpassword123"
-    })
+    login_response = requests.post(
+        f"{BASE_URL}/api/v1/auth/login",
+        json={"email": "test@example.com", "password": "testpassword123"},
+    )
 
     if login_response.status_code != 200:
         print(f"   ❌ Login failed: {login_response.text}")
@@ -43,7 +44,9 @@ def debug_user_endpoints():
 
     print(f"\n3. Testing GET /api/v1/organizations/{org_id}/users...")
     try:
-        response = requests.get(f"{BASE_URL}/api/v1/organizations/{org_id}/users", headers=headers)
+        response = requests.get(
+            f"{BASE_URL}/api/v1/organizations/{org_id}/users", headers=headers
+        )
         print(f"   Status: {response.status_code}")
         print(f"   Response: {response.text}")
         if response.status_code == 500:
@@ -53,6 +56,7 @@ def debug_user_endpoints():
         traceback.print_exc()
 
     print("\n=== Debug Complete ===")
+
 
 if __name__ == "__main__":
     debug_user_endpoints()

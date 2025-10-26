@@ -3,7 +3,7 @@
 
 import sys
 
-sys.path.append('/Users/apple/Desktop/brownie-metadata-api')
+sys.path.append("/Users/apple/Desktop/brownie-metadata-api")
 
 
 from app.db import get_db
@@ -20,7 +20,7 @@ def debug_model_conversion():
 
     try:
         # Get user from database
-        user = db.query(User).filter(User.email == 'test@example.com').first()
+        user = db.query(User).filter(User.email == "test@example.com").first()
         if not user:
             print("❌ User not found in database")
             return
@@ -42,14 +42,17 @@ def debug_model_conversion():
         except Exception as e:
             print(f"❌ UserResponse conversion failed: {e}")
             import traceback
+
             traceback.print_exc()
 
     except Exception as e:
         print(f"❌ Database error: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     debug_model_conversion()

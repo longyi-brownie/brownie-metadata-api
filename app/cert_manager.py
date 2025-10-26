@@ -13,7 +13,7 @@ from typing import Any
 class CertificateManager:
     """Manages database certificates from Vault or local files."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.vault_enabled = os.getenv("VAULT_ENABLED", "false").lower() == "true"
         self.vault_url = os.getenv("VAULT_URL")
         self.vault_token = os.getenv("VAULT_TOKEN")
@@ -40,7 +40,7 @@ class CertificateManager:
     def _get_from_vault(self, cert_type: str) -> str | None:
         """Get certificate from HashiCorp Vault."""
         try:
-            import hvac
+            import hvac  # type: ignore[import-untyped]
 
             client = hvac.Client(url=self.vault_url, token=self.vault_token)
 
@@ -55,9 +55,10 @@ class CertificateManager:
             if cert_content:
                 # Decode if base64 encoded
                 try:
-                    return base64.b64decode(cert_content).decode("utf-8")
+                    decoded = base64.b64decode(cert_content).decode("utf-8")
+                    return decoded if decoded else cert_content
                 except Exception:
-                    return cert_content
+                    return cert_content if cert_content else None
 
             return None
 

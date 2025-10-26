@@ -347,6 +347,47 @@ kubectl scale deployment brownie-metadata-api --replicas=3
 
 ## 🧪 **Testing**
 
+### Setup Test Database
+
+You have 3 options to run tests:
+
+#### Option 1: Docker Compose (Recommended for Local Testing)
+
+```bash
+# Start test PostgreSQL container
+docker-compose -f tests/docker-compose.test.yml up -d
+
+# Run tests
+export METADATA_JWT_SECRET="test-jwt-secret-key-for-testing-only"
+export METADATA_POSTGRES_DSN="postgresql://postgres:postgres@localhost:5433/test_brownie_metadata?sslmode=disable"
+uv run pytest tests/
+```
+
+#### Option 2: Testcontainers (Automatic, Requires Docker Desktop)
+
+```bash
+# Just run tests - testcontainers will spin up Postgres automatically
+export METADATA_JWT_SECRET="test-jwt-secret-key-for-testing-only"
+uv run pytest tests/
+```
+
+#### Option 3: Local PostgreSQL
+
+```bash
+# Start your local PostgreSQL
+brew services start postgresql  # macOS
+# or
+sudo systemctl start postgresql  # Linux
+
+# Create test database
+createdb test_brownie_metadata
+
+# Run tests
+export METADATA_JWT_SECRET="test-jwt-secret-key-for-testing-only"
+export METADATA_POSTGRES_DSN="postgresql://your_user@localhost:5432/test_brownie_metadata?sslmode=disable"
+uv run pytest tests/
+```
+
 ### Run Tests
 
 ```bash

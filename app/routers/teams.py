@@ -6,7 +6,7 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_user
+from ..auth import get_current_user, normalize_role_name
 from ..db import get_db
 from ..models import Organization, Team, User
 from ..schemas import (
@@ -192,7 +192,7 @@ async def add_team_member(
         )
 
     # Check role permissions (admin only)
-    if current_user.role.value != "admin":
+    if normalize_role_name(current_user.role) != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions. Admin role required.",
@@ -224,7 +224,7 @@ async def add_team_member(
         "Team member added",
         team_id=team_id,
         user_id=user.id,
-        role=member_data.role.value,
+        role=getattr(member_data.role, "value", member_data.role),
         added_by=current_user.id,
     )
 
@@ -248,7 +248,7 @@ async def update_team_member(
         )
 
     # Check role permissions (admin only)
-    if current_user.role.value != "admin":
+    if normalize_role_name(current_user.role) != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions. Admin role required.",
@@ -296,7 +296,7 @@ async def remove_team_member(
         )
 
     # Check role permissions (admin only)
-    if current_user.role.value != "admin":
+    if normalize_role_name(current_user.role) != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions. Admin role required.",
@@ -311,12 +311,12 @@ async def remove_team_member(
         )
 
     # Don't allow removing the last admin
-    if user.role.value == "admin":
+    if normalize_role_name(user.role) == "admin":
         admin_count = (
             db.query(User)
             .filter(
                 User.team_id == team_id,
-                User.role == "admin",
+                User.role == user.role,  # compare against enum value
                 User.is_active,
                 User.deleted_at.is_(None),
             )

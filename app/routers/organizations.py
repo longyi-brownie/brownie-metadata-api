@@ -70,18 +70,22 @@ async def get_organization(
 ):
     """Get organization by ID."""
 
-    # Check organization access
-    if current_user.org_id != org_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this organization",
-        )
-
     organization = db.query(Organization).filter(Organization.id == org_id).first()
     if not organization:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found"
         )
+
+    # Allow access if user belongs to org or is admin in their own org
+    # (admins can view other orgs for multi-org management)
+    if current_user.org_id != org_id:
+        from ..auth import normalize_role_name
+
+        if normalize_role_name(current_user.role) != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied to this organization",
+            )
 
     return organization
 
@@ -95,18 +99,21 @@ async def update_organization(
 ):
     """Update organization."""
 
-    # Check organization access
-    if current_user.org_id != org_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this organization",
-        )
-
     organization = db.query(Organization).filter(Organization.id == org_id).first()
     if not organization:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found"
         )
+
+    # Check organization access - allow admins to update any org
+    if current_user.org_id != org_id:
+        from ..auth import normalize_role_name
+
+        if normalize_role_name(current_user.role) != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied to this organization",
+            )
 
     # Update fields
     update_data = org_data.model_dump(exclude_unset=True)
@@ -131,10 +138,14 @@ async def list_organizations(
 ):
     """List organizations accessible to current user."""
 
-    # For now, users can only see their own organization
-    # In a multi-org setup, this would be more complex
-    organizations = (
-        db.query(Organization).filter(Organization.id == current_user.org_id).all()
-    )
+    from ..auth import normalize_role_name
+
+    # Admins can see all orgs, others see only their own
+    if normalize_role_name(current_user.role) == "admin":
+        organizations = db.query(Organization).all()
+    else:
+        organizations = (
+            db.query(Organization).filter(Organization.id == current_user.org_id).all()
+        )
 
     return organizations

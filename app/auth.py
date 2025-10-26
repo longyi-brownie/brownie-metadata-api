@@ -1,7 +1,7 @@
 """Authentication and authorization utilities."""
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import structlog
@@ -21,8 +21,8 @@ logger = structlog.get_logger(__name__)
 # Password hashing
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
-# JWT security
-security = HTTPBearer()
+# JWT security - auto_error=False to handle missing auth ourselves
+security = HTTPBearer(auto_error=False)
 
 # Auth router
 router = APIRouter()
@@ -42,15 +42,65 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     """Create a JWT access token."""
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.jwt_expires_minutes)
+        expire = datetime.now(UTC) + timedelta(minutes=settings.jwt_expires_minutes)
 
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(
         to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm
     )
     return encoded_jwt  # type: ignore[no-any-return]
+
+
+# --- Role helpers ---
+def normalize_role_name(role: Any) -> str:
+    """Return a lowercase role name from various role representations.
+
+    Accepts DB enum, schema enum, or raw string.
+    """
+    try:
+        # Enum-like with .value
+        value = getattr(role, "value", role)
+        return str(value).lower()
+    except Exception:
+        return str(role).lower()
+
+
+def to_db_user_role(role: Any) -> UserRole | None:
+    """Convert schema enum or string to DB UserRole enum.
+
+    Returns None if role is falsy.
+    """
+    if role is None:
+        return None
+    if isinstance(role, UserRole):
+        return role
+    name = normalize_role_name(role)
+    mapping: dict[str, UserRole] = {}
+    # Build mapping from DB enum values/names in a tolerant way
+    try:
+        mapping = {
+            "admin": UserRole.ADMIN,  # type: ignore[attr-defined]
+            "member": getattr(UserRole, "MEMBER", None),
+            "viewer": UserRole.VIEWER,  # type: ignore[attr-defined]
+            "editor": getattr(UserRole, "EDITOR", None),
+        }
+    except Exception:
+        # Fallback: best-effort name-based resolution
+        pass
+
+    resolved = mapping.get(name)
+    if resolved is not None:
+        return resolved
+    # Last resort: try attribute lookup by uppercased name
+    try:
+        return getattr(UserRole, name.upper())
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid role: {role}",
+        ) from e
 
 
 def verify_token(token: str) -> UserClaims | None:
@@ -79,7 +129,7 @@ def verify_token(token: str) -> UserClaims | None:
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
     db: Session = Depends(get_db),
 ) -> User:
     """Get the current authenticated user."""
@@ -88,6 +138,9 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    if credentials is None:
+        raise credentials_exception
 
     try:
         token = credentials.credentials
@@ -107,13 +160,15 @@ async def get_current_user(
             raise credentials_exception
 
         return user
+    except HTTPException:
+        raise
     except Exception as e:
         logger.warning("Authentication failed", error=str(e))
         raise credentials_exception from e
 
 
 async def get_current_user_claims(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> UserClaims:
     """Get the current user's JWT claims."""
     credentials_exception = HTTPException(
@@ -122,12 +177,17 @@ async def get_current_user_claims(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
+    if credentials is None:
+        raise credentials_exception
+
     try:
         token = credentials.credentials
         claims = verify_token(token)
         if claims is None:
             raise credentials_exception
         return claims
+    except HTTPException:
+        raise
     except Exception as e:
         logger.warning("Token validation failed", error=str(e))
         raise credentials_exception from e
@@ -148,11 +208,13 @@ def require_team_role(team_id: uuid.UUID, allowed_roles: set[str]) -> Any:
                 detail="User does not belong to this team",
             )
 
-        # Check if user has required role
-        if current_user.role.value not in allowed_roles:
+        # Check if user has required role (normalize to lowercase)
+        normalized_allowed = {r.lower() for r in allowed_roles}
+        current_role = current_user.role.value.lower() if current_user.role else ""
+        if current_role not in normalized_allowed:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"User role '{current_user.role.value}' not in allowed roles: {allowed_roles}",
+                detail=f"User role '{current_role}' not in allowed roles: {normalized_allowed}",
             )
 
         return current_user
@@ -231,7 +293,8 @@ def _get_role_permissions(role: UserRole) -> dict:
         },
     }
 
-    return permissions.get(role.value, {})
+    key = role.value.lower() if hasattr(role, "value") else str(role).lower()
+    return permissions.get(key, {})
 
 
 def require_org_access(org_id: uuid.UUID) -> Any:
@@ -270,14 +333,14 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
 
 def create_user_token(user: User) -> str:
     """Create a JWT token for a user."""
-    roles = [user.role.value] if user.role else []
+    roles = [user.role.value.lower()] if user.role else []
 
     token_data = {
         "sub": str(user.id),
         "org_id": str(user.org_id),
         "email": user.email,
         "roles": roles,
-        "iat": datetime.utcnow(),
+        "iat": datetime.now(UTC),
     }
 
     return create_access_token(token_data)
@@ -370,7 +433,7 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         "email": current_user.email,
         "username": current_user.username,
         "full_name": current_user.full_name,
-        "role": current_user.role.value,
+        "role": current_user.role.value.lower() if current_user.role else None,
         "org_id": current_user.org_id,
         "team_id": current_user.team_id,
         "is_active": current_user.is_active,

@@ -139,39 +139,39 @@ def test_update_team(client: TestClient, test_user_data, test_team_data):
 
 def test_add_team_member(client: TestClient, test_user_data, test_team_data):
     """Test adding a team member (admin only)."""
+    import time
+    import uuid
+
     # Signup to get token and org
     signup_response = client.post("/api/v1/auth/signup", json=test_user_data)
     token = signup_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
-    # Get user info to get org_id
+    # Get user info to get org_id and team_id
     user_response = client.get("/api/v1/auth/me", headers=headers)
     org_id = user_response.json()["org_id"]
+    team_id = user_response.json()["team_id"]
 
-    # Create team
-    team_data = {**test_team_data, "organization_id": org_id}
-    create_response = client.post(
-        f"/api/v1/organizations/{org_id}/teams", json=team_data, headers=headers
-    )
-    team_id = create_response.json()["id"]
-
-    # Create another user
+    # Create another user in the SAME organization
+    unique = f"{uuid.uuid4().hex[:8]}-{int(time.time() * 1000) % 100000}"
     user2_data = {
-        "email": "user2@example.com",
+        "email": f"user2-{unique}@example.com",
         "password": "password123",
-        "username": "user2",
+        "username": f"user2-{unique}",
         "full_name": "User 2",
-        "organization_name": "Test Organization",
-        "team_name": "Test Team",
+        "organization_id": org_id,
+        "team_id": team_id,
+        "role": "member",
     }
-    signup_response2 = client.post("/api/v1/auth/signup", json=user2_data)
-    user2_id = signup_response2.json()[
-        "access_token"
-    ]  # This would need to be extracted from token
+    create_user_response = client.post(
+        f"/api/v1/organizations/{org_id}/users", json=user2_data, headers=headers
+    )
+    assert create_user_response.status_code == 200
+    user2_id = create_user_response.json()["id"]
 
     # Add team member
     member_data = {
-        "user_id": user2_id,  # This would need to be the actual user ID
+        "user_id": user2_id,
         "role": "member",
     }
     response = client.post(

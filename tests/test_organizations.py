@@ -90,6 +90,9 @@ def test_update_organization(
     client: TestClient, test_user_data, test_organization_data
 ):
     """Test updating an organization."""
+    import time
+    import uuid
+
     # Signup to get token
     signup_response = client.post("/api/v1/auth/signup", json=test_user_data)
     token = signup_response.json()["access_token"]
@@ -101,8 +104,12 @@ def test_update_organization(
     )
     org_id = create_response.json()["id"]
 
-    # Update organization
-    update_data = {"name": "Updated Organization", "description": "Updated description"}
+    # Update organization with unique name
+    unique = f"{uuid.uuid4().hex[:8]}-{int(time.time() * 1000) % 100000}"
+    update_data = {
+        "name": f"Updated Organization {unique}",
+        "description": "Updated description",
+    }
     response = client.put(
         f"/api/v1/organizations/{org_id}", json=update_data, headers=headers
     )

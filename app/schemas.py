@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # Enums
@@ -217,6 +217,18 @@ class UserResponse(UserBase, TimestampSchema):
     deleted_at: datetime | None = None
     deleted_by: uuid.UUID | None = None
 
+    # Normalize role from DB enum/string to our API enum (case-insensitive)
+    @field_validator("role", mode="before")
+    @classmethod
+    def normalize_role(cls, v):  # type: ignore[no-untyped-def]
+        if v is None:
+            return v
+        value = getattr(v, "value", v)
+        try:
+            return UserRole(str(value).lower())
+        except Exception:
+            return v
+
 
 # Team member schemas
 class TeamMemberAdd(BaseSchema):
@@ -289,6 +301,25 @@ class IncidentResponse(IncidentBase, TimestampSchema):
     response_time_minutes: int | None = None
     resolution_time_minutes: int | None = None
 
+    # Coerce enums from DB values/strings
+    @field_validator("status", mode="before")
+    @classmethod
+    def normalize_status(cls, v):  # type: ignore[no-untyped-def]
+        val = getattr(v, "value", v)
+        try:
+            return IncidentStatus(str(val).lower())
+        except Exception:
+            return v
+
+    @field_validator("priority", mode="before")
+    @classmethod
+    def normalize_priority(cls, v):  # type: ignore[no-untyped-def]
+        val = getattr(v, "value", v)
+        try:
+            return IncidentPriority(str(val).lower())
+        except Exception:
+            return v
+
 
 class IncidentListParams(PaginationSchema):
     """Parameters for listing incidents."""
@@ -297,6 +328,14 @@ class IncidentListParams(PaginationSchema):
     priority: IncidentPriority | None = None
     since: datetime | None = None
     q: str | None = Field(None, description="Search query")
+
+
+class PaginatedIncidentResponse(BaseSchema):
+    """Paginated response wrapper for incidents."""
+
+    items: list[IncidentResponse]
+    next_cursor: str | None = None
+    has_more: bool = False
 
 
 # Agent config schemas

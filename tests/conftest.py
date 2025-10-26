@@ -62,6 +62,9 @@ def test_db_url(postgres_container):
 @pytest.fixture(scope="session")
 def test_engine(test_db_url):
     """Create test database engine."""
+    # Ensure all models are imported so tables are registered on Base.metadata
+    from app import models as _models  # noqa: F401
+
     engine = create_engine(test_db_url)
     Base.metadata.create_all(bind=engine)
     return engine
@@ -101,22 +104,31 @@ def client(test_db_session):
 @pytest.fixture
 def test_user_data():
     """Test user data."""
+    import time
+    import uuid
+
+    # Use both UUID and timestamp to ensure uniqueness across test runs
+    unique = f"{uuid.uuid4().hex[:8]}-{int(time.time() * 1000) % 100000}"
     return {
-        "email": "test@example.com",
+        "email": f"test-{unique}@example.com",
         "password": "testpassword123",
-        "username": "testuser",
+        "username": f"testuser-{unique}",
         "full_name": "Test User",
-        "organization_name": "Test Organization",
-        "team_name": "Test Team",
+        "organization_name": f"Test Organization {unique}",
+        "team_name": f"Test Team {unique}",
     }
 
 
 @pytest.fixture
 def test_organization_data():
     """Test organization data."""
+    import time
+    import uuid
+
+    unique = f"{uuid.uuid4().hex[:8]}-{int(time.time() * 1000) % 100000}"
     return {
-        "name": "Test Organization",
-        "slug": "test-org",
+        "name": f"Test Organization {unique}",
+        "slug": f"test-org-{unique}",
         "description": "A test organization",
         "is_active": True,
         "max_teams": 10,
@@ -127,9 +139,13 @@ def test_organization_data():
 @pytest.fixture
 def test_team_data():
     """Test team data."""
+    import time
+    import uuid
+
+    unique = f"{uuid.uuid4().hex[:8]}-{int(time.time() * 1000) % 100000}"
     return {
-        "name": "Test Team",
-        "slug": "test-team",
+        "name": f"Test Team {unique}",
+        "slug": f"test-team-{unique}",
         "description": "A test team",
         "is_active": True,
         "permissions": {},

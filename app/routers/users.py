@@ -6,7 +6,7 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_user
+from ..auth import get_current_user, normalize_role_name, to_db_user_role
 from ..db import get_db
 from ..models import Organization, Team, User
 from ..schemas import (
@@ -86,7 +86,7 @@ async def create_user(
         is_active=user_data.is_active,
         is_verified=user_data.is_verified,
         team_id=user_data.team_id,
-        role=user_data.role,
+        role=to_db_user_role(user_data.role) if user_data.role else None,
         preferences=user_data.preferences,
         org_id=org_id,
         organization_id=org_id,
@@ -149,8 +149,19 @@ async def list_users(
     # Get next cursor
     next_cursor = str(users[-1].id) if users and has_more else None
 
+    # Normalize role serialization to lowercase for response
+    normalized_items = []
+    for u in users:
+        try:
+            if hasattr(u, "role") and hasattr(u.role, "value"):
+                # Convert enum to lowercase value for consistent API
+                u.role = type(u.role)(u.role.value.upper())
+        except Exception:
+            pass
+        normalized_items.append(u)
+
     return PaginatedUserResponse(
-        items=users, next_cursor=next_cursor, has_more=has_more
+        items=normalized_items, next_cursor=next_cursor, has_more=has_more
     )
 
 
@@ -198,7 +209,10 @@ async def update_user(
     # Check permissions
     if current_user.id != user_id:
         # Check if current user is admin in the same team
-        if current_user.team_id != user.team_id or current_user.role.value != "admin":
+        if (
+            current_user.team_id != user.team_id
+            or normalize_role_name(current_user.role) != "admin"
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions to update this user",
@@ -240,19 +254,22 @@ async def delete_user(
         )
 
     # Check if current user is admin in the same team
-    if current_user.team_id != user.team_id or current_user.role.value != "admin":
+    if (
+        current_user.team_id != user.team_id
+        or normalize_role_name(current_user.role) != "admin"
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to delete this user",
         )
 
     # Don't allow deleting the last admin
-    if user.role.value == "admin":
+    if normalize_role_name(user.role) == "admin":
         admin_count = (
             db.query(User)
             .filter(
                 User.team_id == user.team_id,
-                User.role == "admin",
+                User.role == user.role,
                 User.is_active,
                 User.deleted_at.is_(None),
             )

@@ -1,7 +1,7 @@
 """Main FastAPI application."""
 
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import FastAPI
@@ -92,12 +92,12 @@ app.add_middleware(
 @app.middleware("http")
 async def metrics_middleware(request, call_next):
     """Middleware for collecting metrics and logging."""
-    start_time = datetime.utcnow()
+    start_time = datetime.now(UTC)
 
     response = await call_next(request)
 
     # Calculate duration
-    duration = (datetime.utcnow() - start_time).total_seconds()
+    duration = (datetime.now(UTC) - start_time).total_seconds()
 
     # Record metrics
     REQUEST_COUNT.labels(
@@ -142,7 +142,7 @@ async def health_check():
 
     return HealthResponse(
         status="healthy" if db_status == "healthy" else "unhealthy",
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(UTC),
         version="0.1.0",
         database=db_status,
     )

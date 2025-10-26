@@ -62,8 +62,10 @@ def test_complete_user_crud():
     )
     if org_users_response.status_code == 200:
         users_data = org_users_response.json()
-        print(f"   ✅ Organization users: {len(users_data)} users found")
-        for user in users_data:
+        # New API returns { items: [...], next_cursor, has_more }
+        items = users_data.get("items", users_data)
+        print(f"   ✅ Organization users: {len(items)} users found")
+        for user in items:
             print(f"      - {user['email']} ({user['role']})")
     else:
         print(

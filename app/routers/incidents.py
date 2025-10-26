@@ -1,14 +1,14 @@
 """Incident management endpoints."""
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_user
+from ..auth import get_current_user, normalize_role_name
 from ..db import get_db
 from ..models import Incident, Team, User
 from ..schemas import (
@@ -16,7 +16,7 @@ from ..schemas import (
     IncidentListParams,
     IncidentResponse,
     IncidentUpdate,
-    PaginatedResponse,
+    PaginatedIncidentResponse,
 )
 
 logger = structlog.get_logger(__name__)
@@ -46,7 +46,7 @@ async def create_incident(
         )
 
     # Check role permissions (editor/admin only)
-    if current_user.role.value not in {"editor", "admin"}:
+    if normalize_role_name(current_user.role) not in {"editor", "admin"}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions. Editor or admin role required.",
@@ -81,8 +81,9 @@ async def create_incident(
     )
 
     # Set started_at if status is not OPEN
-    if incident_data.status.value != "open":
-        incident.started_at = datetime.utcnow()
+    status_val = getattr(incident_data.status, "value", incident_data.status)
+    if str(status_val).lower() != "open":
+        incident.started_at = datetime.now(UTC)
 
     db.add(incident)
     db.commit()
@@ -100,7 +101,7 @@ async def create_incident(
     return incident
 
 
-@router.get("/teams/{team_id}/incidents", response_model=PaginatedResponse)
+@router.get("/teams/{team_id}/incidents", response_model=PaginatedIncidentResponse)
 async def list_incidents(
     team_id: uuid.UUID,
     params: IncidentListParams = Depends(),
@@ -158,7 +159,7 @@ async def list_incidents(
     # Get next cursor
     next_cursor = str(incidents[-1].id) if incidents and has_more else None
 
-    return PaginatedResponse(
+    return PaginatedIncidentResponse(
         items=incidents, next_cursor=next_cursor, has_more=has_more
     )
 
@@ -208,7 +209,7 @@ async def update_incident(
         )
 
     # Check role permissions (editor/admin only)
-    if current_user.role.value not in {"editor", "admin"}:
+    if normalize_role_name(current_user.role) not in {"editor", "admin"}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions. Editor or admin role required.",
@@ -221,21 +222,24 @@ async def update_incident(
 
     # Update timestamps based on status changes
     if incident_data.status:
-        if incident_data.status.value == "in_progress" and not incident.started_at:
-            incident.started_at = datetime.utcnow()
-        elif incident_data.status.value == "resolved" and not incident.resolved_at:
-            incident.resolved_at = datetime.utcnow()
+        status_val = str(
+            getattr(incident_data.status, "value", incident_data.status)
+        ).lower()
+        if status_val == "in_progress" and not incident.started_at:
+            incident.started_at = datetime.now(UTC)
+        elif status_val == "resolved" and not incident.resolved_at:
+            incident.resolved_at = datetime.now(UTC)
             # Calculate resolution time
             if incident.started_at:
                 incident.resolution_time_minutes = int(
                     (incident.resolved_at - incident.started_at).total_seconds() / 60
                 )
-        elif incident_data.status.value == "closed" and not incident.closed_at:
-            incident.closed_at = datetime.utcnow()
+        elif status_val == "closed" and not incident.closed_at:
+            incident.closed_at = datetime.now(UTC)
 
     # Calculate response time if assigned
     if incident_data.assigned_to and not incident.started_at:
-        incident.started_at = datetime.utcnow()
+        incident.started_at = datetime.now(UTC)
         if incident.created_at:
             incident.response_time_minutes = int(
                 (incident.started_at - incident.created_at).total_seconds() / 60
@@ -276,7 +280,7 @@ async def delete_incident(
         )
 
     # Check role permissions (admin only)
-    if current_user.role.value != "admin":
+    if normalize_role_name(current_user.role) != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions. Admin role required.",

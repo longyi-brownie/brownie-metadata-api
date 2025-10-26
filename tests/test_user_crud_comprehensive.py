@@ -1,6 +1,14 @@
 """Comprehensive user CRUD tests."""
 
+import time
+import uuid
+
 import pytest
+
+
+def make_unique(base: str) -> str:
+    """Generate unique string for test data."""
+    return f"{base}-{uuid.uuid4().hex[:8]}-{int(time.time() * 1000) % 100000}"
 
 
 class TestUserCRUD:
@@ -13,12 +21,12 @@ class TestUserCRUD:
         signup_response = client.post(
             "/api/v1/auth/signup",
             json={
-                "email": "crud@example.com",
+                "email": make_unique("crud") + "@example.com",
                 "password": "testpassword123",
-                "username": "cruduser",
+                "username": make_unique("cruduser"),
                 "full_name": "CRUD User",
-                "organization_name": "CRUD Organization",
-                "team_name": "CRUD Team",
+                "organization_name": make_unique("CRUD Organization"),
+                "team_name": make_unique("CRUD Team"),
             },
         )
 
@@ -40,8 +48,8 @@ class TestUserCRUD:
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == user_id
-        assert data["email"] == "crud@example.com"
-        assert data["username"] == "cruduser"
+        assert "@example.com" in data["email"]
+        assert "cruduser" in data["username"]
         assert data["full_name"] == "CRUD User"
         assert data["role"] == "admin"
 
@@ -59,20 +67,23 @@ class TestUserCRUD:
         assert "next_cursor" in data
         assert "has_more" in data
         assert len(data["items"]) == 1
-        assert data["items"][0]["email"] == "crud@example.com"
+        assert "@example.com" in data["items"][0]["email"]
 
     def test_create_user_success(self, client, auth_headers, user_info):
         """Test creating a new user in organization."""
         org_id = user_info["org_id"]
         team_id = user_info["team_id"]
 
+        new_email = make_unique("newuser") + "@example.com"
+        new_username = make_unique("newuser")
         response = client.post(
             f"/api/v1/organizations/{org_id}/users",
             json={
-                "email": "newuser@example.com",
+                "email": new_email,
                 "password": "testpassword123",
-                "username": "newuser",
+                "username": new_username,
                 "full_name": "New User",
+                "organization_id": org_id,
                 "team_id": team_id,
                 "role": "member",
             },
@@ -81,8 +92,8 @@ class TestUserCRUD:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["email"] == "newuser@example.com"
-        assert data["username"] == "newuser"
+        assert data["email"] == new_email
+        assert data["username"] == new_username
         assert data["full_name"] == "New User"
         assert data["role"] == "member"
         assert data["org_id"] == org_id

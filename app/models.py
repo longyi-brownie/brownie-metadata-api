@@ -1,6 +1,6 @@
 """Import models from the database project."""
 
-# Import all models from the database project
+# Import all models from the database project (top-level import for compatibility)
 from brownie_metadata_db import (
     AgentConfig,
     AgentType,

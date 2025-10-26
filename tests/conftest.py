@@ -23,26 +23,20 @@ def event_loop():
 
 @pytest.fixture(scope="session")
 def postgres_container():
-    """Start PostgreSQL container for testing using testcontainers."""
+    """Start PostgreSQL container for testing using testcontainers.
+
+    Note: SSL testing would require complex certificate setup in containers.
+    For now, we test without SSL to keep tests simple and fast.
+    """
     import os
 
-    # In CI, GitHub Actions provides a postgres service, not Docker containers
-    # So we use the service directly via DSN from environment
     if os.getenv("CI"):
-        # Create a simple mock that returns the CI postgres service URL
+        # In CI, GitHub Actions provides a postgres service
         from types import SimpleNamespace
 
         container = SimpleNamespace()
-        # CI postgres service uses 'postgres' user, not test_user
-        # And postgres service doesn't have SSL
-        default_dsn = (
-            "postgresql://postgres:postgres@localhost:5432/test_brownie_metadata"
-        )
+        default_dsn = "postgresql://postgres:postgres@localhost:5432/test_brownie_metadata?sslmode=disable"
         dsn = os.getenv("METADATA_POSTGRES_DSN", default_dsn)
-        # Remove sslmode=require if present (CI postgres doesn't support SSL)
-        dsn = dsn.replace("sslmode=require", "sslmode=disable")
-        if "sslmode=" not in dsn:
-            dsn = f"{dsn}?sslmode=disable"
         container.get_connection_url = lambda: dsn
         yield container
     else:

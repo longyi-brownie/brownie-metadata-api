@@ -65,16 +65,7 @@ jobs:
         PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE USER test_user WITH PASSWORD 'test_password';"
         PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE test_brownie_metadata OWNER test_user;"
         PGPASSWORD=postgres psql -h localhost -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE test_brownie_metadata TO test_user;"
-    
-    - name: Run database migrations
-      env:
-        METADATA_POSTGRES_DSN: "postgresql://test_user:test_password@localhost:5432/test_brownie_metadata?sslmode=disable"
-      run: |
-        # Install the database package for migrations
-        uv add brownie-metadata-db==0.1.0
-        # Run migrations (if available)
-        # alembic upgrade head
-    
+
     - name: Run linting
       run: |
         uv run ruff check .

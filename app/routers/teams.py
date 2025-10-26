@@ -331,6 +331,7 @@ async def remove_team_member(
 
     # Soft delete user
     from datetime import datetime
+
     user.deleted_at = datetime.utcnow()  # type: ignore[attr-defined]
     user.deleted_by = current_user.id
     user.is_active = False

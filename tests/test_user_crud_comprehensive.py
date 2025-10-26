@@ -1,21 +1,13 @@
 """Comprehensive user CRUD tests."""
 
 import pytest
-from fastapi.testclient import TestClient
-
-from app.main import app
 
 
 class TestUserCRUD:
     """Test user CRUD operations."""
 
     @pytest.fixture
-    def client(self):
-        """Create test client."""
-        return TestClient(app)
-
-    @pytest.fixture
-    def auth_headers(self, client: TestClient):
+    def auth_headers(self, client):
         """Create authenticated user and return headers."""
         # Signup
         signup_response = client.post(
@@ -34,14 +26,12 @@ class TestUserCRUD:
         return {"Authorization": f"Bearer {token}"}
 
     @pytest.fixture
-    def user_info(self, client: TestClient, auth_headers: dict):
+    def user_info(self, client, auth_headers):
         """Get current user info."""
         response = client.get("/api/v1/auth/me", headers=auth_headers)
         return response.json()
 
-    def test_get_user_by_id_success(
-        self, client: TestClient, auth_headers: dict, user_info: dict
-    ):
+    def test_get_user_by_id_success(self, client, auth_headers, user_info):
         """Test getting user by ID."""
         user_id = user_info["id"]
 
@@ -55,9 +45,7 @@ class TestUserCRUD:
         assert data["full_name"] == "CRUD User"
         assert data["role"] == "admin"
 
-    def test_list_organization_users_success(
-        self, client: TestClient, auth_headers: dict, user_info: dict
-    ):
+    def test_list_organization_users_success(self, client, auth_headers, user_info):
         """Test listing users in organization."""
         org_id = user_info["org_id"]
 
@@ -73,9 +61,7 @@ class TestUserCRUD:
         assert len(data["items"]) == 1
         assert data["items"][0]["email"] == "crud@example.com"
 
-    def test_create_user_success(
-        self, client: TestClient, auth_headers: dict, user_info: dict
-    ):
+    def test_create_user_success(self, client, auth_headers, user_info):
         """Test creating a new user in organization."""
         org_id = user_info["org_id"]
         team_id = user_info["team_id"]

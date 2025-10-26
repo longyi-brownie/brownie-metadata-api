@@ -73,8 +73,9 @@ class Settings(BaseSettings):
         """Validate JWT secret strength."""
         # Allow test secrets in test environment
         import os
+
         is_test = os.getenv("PYTEST_CURRENT_TEST") or os.getenv("CI")
-        
+
         if v == "CHANGE_THIS_TO_A_STRONG_SECRET_AT_LEAST_32_CHARS" and not is_test:
             raise ValueError(
                 "JWT_SECRET must be changed from default value! "

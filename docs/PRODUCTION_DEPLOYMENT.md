@@ -1,70 +1,71 @@
-# Production Deployment Guide
+# Production Deployment
 
-## Database Certificate Authentication
+## Quick Start
 
-In production, the API server uses certificate-based (mTLS) authentication to connect to PostgreSQL.
-
-### How It Works
-
-1. **Certificates stored in Vault** (production) or local files (development)
-2. **API server reads certificates** via `app/cert_manager.py`
-3. **Certificates written to temp directory** for psycopg to use
-4. **Database connection uses SSL** with certificates
-
-### Production Configuration
-
-Set these environment variables:
+### Required Environment Variables
 
 ```bash
-# Enable mTLS for production
-METADATA_MTLS_ENABLED=true
+# Database - use SSL in production
+METADATA_POSTGRES_DSN=postgresql://brownie-fastapi-server@db-host:5432/brownie_metadata?sslmode=require&sslcert=client.crt&sslkey=client.key&sslrootcert=ca.crt
 
-# Vault configuration (production)
-VAULT_ENABLED=true
-VAULT_URL=https://vault.yourcompany.com
-VAULT_TOKEN=your-vault-token
-VAULT_CERT_PATH=secret/brownie-metadata/certs
+# JWT Secret - generate with: openssl rand -base64 32
+METADATA_JWT_SECRET=your-strong-secret-here
 
-# Database connection (will add SSL params automatically)
-METADATA_POSTGRES_DSN=postgresql://brownie-fastapi-server@db-host:5432/brownie_metadata
+# Server Configuration
+METADATA_DEBUG=false
+METADATA_HOST=0.0.0.0
+METADATA_PORT=8080
+
+# CORS - restrict to your domains
+METADATA_CORS_ORIGINS=["https://yourdomain.com"]
 ```
 
-### What Happens at Runtime
+### Docker Deployment
 
-1. **Settings loaded** via `app/settings.py`
-2. **Certificate manager checks** if Vault is enabled
-3. **Certificates retrieved** from Vault (production) or local files (dev)
-4. **Certificates written** to `/tmp/brownie-certs/` directory
-5. **Database URL built** with `sslcert`, `sslkey`, `sslrootcert` parameters
-6. **SQLAlchemy engine created** with SSL configuration
-7. **Connections use certificates** automatically
+```bash
+# Build image
+docker build -t brownie-metadata-api .
 
-### Test vs Production
+# Run container
+docker run -d \
+  --name brownie-api \
+  -e METADATA_POSTGRES_DSN="$METADATA_POSTGRES_DSN" \
+  -e METADATA_JWT_SECRET="$METADATA_JWT_SECRET" \
+  -p 8080:8080 \
+  brownie-metadata-api
+```
 
-| Mode | SSL | Source of Certificates |
-|------|-----|----------------------|
-| **Tests** | Disabled (`sslmode=disable`) | Not used |
-| **Development** | Basic (`sslmode=require`) | Local files in `dev-certs/` |
-| **Production** | Full mTLS (`sslmode=verify-full`) | HashiCorp Vault |
+### Kubernetes Deployment
 
-### Security Notes
+See `infrastructure/kubernetes/` for manifests.
 
-- ✅ **Production always uses mTLS** with certificate verification
-- ✅ **Certificates stored in Vault**, not in code or environment
-- ✅ **Test database doesn't use SSL** (faster, simpler tests)
-- ✅ **dev-certs** for local development with self-signed certs
+## Certificate Authentication
 
-### Troubleshooting
+Production uses certificate-based (mTLS) authentication for database connections.
 
-**Error: "SSL connection required"**
-- Check that production database has SSL enabled
-- Verify certificates are available in Vault
+**Configuration:**
+1. Store certificates in HashiCorp Vault or environment
+2. Configure `VAULT_ENABLED=true` for Vault integration
+3. API automatically uses certificates from Vault or local files
 
-**Error: "certificate verify failed"**
-- Check CA certificate matches database server's certificate
-- Verify certificate files are readable and valid
+**Security:**
+- ✅ No database passwords in production
+- ✅ All connections encrypted with SSL
+- ✅ Certificate-based authentication
+- ✅ Audit logging for all operations
 
-**Test failures about SSL**
-- Tests should use `sslmode=disable` (which they do)
-- Check environment variable `METADATA_POSTGRES_DSN` in CI
+See [Security Guide](./SECURITY.md) for details.
 
+## Monitoring
+
+**Health Check:** `GET /health`
+
+**Metrics:** `GET /metrics` (Prometheus format)
+
+**Logs:** Structured JSON logs to stdout
+
+## Scaling
+
+- **Stateless API** - scale horizontally by adding instances
+- **Database connection pooling** - handles 100+ concurrent connections
+- **Load balancer ready** - configure health check on `/health` endpoint

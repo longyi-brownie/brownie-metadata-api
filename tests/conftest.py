@@ -23,9 +23,27 @@ def event_loop():
 
 @pytest.fixture(scope="session")
 def postgres_container():
-    """Start PostgreSQL container for testing."""
-    with PostgresContainer("postgres:16") as postgres:
-        yield postgres
+    """Start PostgreSQL container for testing (or use CI's postgres service)."""
+    import os
+
+    # In CI, postgres service is already running on localhost:5432
+    if os.getenv("CI"):
+        from unittest.mock import MagicMock
+
+        mock_postgres = MagicMock()
+        mock_postgres.get_connection_url.return_value = os.getenv(
+            "METADATA_POSTGRES_DSN",
+            "postgresql://test_user:test_password@localhost:5432/test_brownie_metadata?sslmode=disable",
+        )
+        yield mock_postgres
+    else:
+        # Locally, try to use testcontainers if Docker is available
+        try:
+            with PostgresContainer("postgres:16") as postgres:
+                yield postgres
+        except Exception:
+            # If Docker is not available, skip the test
+            pytest.skip("Docker not available for testcontainers")
 
 
 @pytest.fixture(scope="session")

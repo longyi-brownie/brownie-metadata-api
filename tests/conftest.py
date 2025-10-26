@@ -33,10 +33,17 @@ def postgres_container():
         from types import SimpleNamespace
 
         container = SimpleNamespace()
-        container.get_connection_url = lambda: os.getenv(
-            "METADATA_POSTGRES_DSN",
-            "postgresql://postgres:postgres@localhost:5432/test_brownie_metadata",
+        # CI postgres service uses 'postgres' user, not test_user
+        # And postgres service doesn't have SSL
+        default_dsn = (
+            "postgresql://postgres:postgres@localhost:5432/test_brownie_metadata"
         )
+        dsn = os.getenv("METADATA_POSTGRES_DSN", default_dsn)
+        # Remove sslmode=require if present (CI postgres doesn't support SSL)
+        dsn = dsn.replace("sslmode=require", "sslmode=disable")
+        if "sslmode=" not in dsn:
+            dsn = f"{dsn}?sslmode=disable"
+        container.get_connection_url = lambda: dsn
         yield container
     else:
         # Locally, use testcontainers to spin up a temporary container

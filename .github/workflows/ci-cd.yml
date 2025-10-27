@@ -32,18 +32,30 @@ jobs:
         uv sync --dev
         uv add --dev ruff mypy bandit safety
 
+    - name: Generate SSL certificates
+      run: |
+        # Generate certificates for SSL testing
+        uv run python scripts/generate_dev_certs.py
+        
+        # Verify certificates were created
+        ls -la dev-certs/
+        
+        # Set proper permissions
+        chmod 600 dev-certs/server.key dev-certs/client.key
+
     - name: Start PostgreSQL with Docker Compose
       run: |
-        # Use the same docker-compose setup as local development
+        # Use the same docker-compose setup as local development (with SSL)
         docker compose -f tests/docker-compose.test.yml up -d
         
         # Wait for PostgreSQL to be ready
         echo "Waiting for PostgreSQL to be ready..."
         timeout 30 bash -c 'until docker exec brownie-test-postgres pg_isready -U postgres; do sleep 1; done'
         
-        # Verify PostgreSQL is running
+        # Verify PostgreSQL is running and SSL is enabled
         docker ps
         docker logs brownie-test-postgres
+        docker exec brownie-test-postgres psql -U postgres -c "SHOW ssl;"
 
     - name: Run linting
       run: |
@@ -59,12 +71,13 @@ jobs:
     
     - name: Run tests
       env:
-        # Use same DSN as local testing (port 5433, sslmode=disable)
-        METADATA_POSTGRES_DSN: "postgresql://postgres:postgres@localhost:5433/test_brownie_metadata?sslmode=disable"
+        # Use SSL-enabled DSN with certificates
+        METADATA_POSTGRES_DSN: "postgresql://postgres:postgres@localhost:5433/test_brownie_metadata?sslmode=require&sslcert=dev-certs/client.crt&sslkey=dev-certs/client.key&sslrootcert=dev-certs/ca.crt"
         METADATA_JWT_SECRET: "test-jwt-secret-key-for-testing-only"
         METADATA_DEBUG: "true"
+        LOCAL_CERT_DIR: "dev-certs"
       run: |
-        # Run all tests with coverage (SSL integration tests will be skipped)
+        # Run all tests with coverage (including SSL tests)
         uv run pytest tests/ -v --cov=app --cov-report=xml --cov-report=html
     
     - name: Stop PostgreSQL
@@ -91,81 +104,9 @@ jobs:
           bandit-report.json
           safety-report.json
 
-  certificate-test:
-    runs-on: ubuntu-latest
-    needs: test
-    
-    services:
-      postgres:
-        image: postgres:14
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-          POSTGRES_DB: test_brownie_metadata
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-    
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
-      with:
-        version: "latest"
-    
-    - name: Install dependencies
-      run: |
-        uv sync --dev
-        uv add --dev ruff mypy bandit safety
-    
-    - name: Generate test certificates
-      run: |
-        mkdir -p test-certs
-        # Generate self-signed certificates for testing
-        openssl req -x509 -newkey rsa:4096 -keyout test-certs/client.key -out test-certs/client.crt -days 365 -nodes -subj "/CN=test-client"
-        openssl req -x509 -newkey rsa:4096 -keyout test-certs/ca.crt -out test-certs/ca.key -days 365 -nodes -subj "/CN=test-ca"
-        chmod 600 test-certs/client.key
-    
-    - name: Set up test database with SSL
-      run: |
-        # Clean up any existing test database and user
-        PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS test_brownie_metadata;" || true
-        PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP USER IF EXISTS test_user;" || true
-        
-        # Create test user and database
-        PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE USER test_user WITH PASSWORD 'test_password';"
-        PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE test_brownie_metadata OWNER test_user;"
-        PGPASSWORD=postgres psql -h localhost -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE test_brownie_metadata TO test_user;"
-    
-    - name: Test certificate authentication
-      env:
-        METADATA_POSTGRES_DSN: "postgresql://test_user:test_password@localhost:5432/test_brownie_metadata?sslmode=require&sslcert=test-certs/client.crt&sslkey=test-certs/client.key&sslrootcert=test-certs/ca.crt"
-        METADATA_JWT_SECRET: "test-jwt-secret-key-for-testing-only"
-        METADATA_DEBUG: "true"
-      run: |
-        # Test database connection with certificates
-        uv run python -c "
-        from sqlalchemy import text
-        from app.db import get_db
-        db = next(get_db())
-        result = db.execute(text('SELECT 1')).fetchone()
-        print('Certificate authentication successful:', result)
-        db.close()
-        "
-
   security-scan:
     runs-on: ubuntu-latest
-    needs: [test, certificate-test]
+    needs: [test]
     
     steps:
     - uses: actions/checkout@v4

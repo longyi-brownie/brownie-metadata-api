@@ -220,6 +220,10 @@ class TestSSLConnectionFallback:
 
     def test_build_url_respects_sslmode_disable(self):
         """Test that URL builder respects sslmode=disable."""
+        # Skip if SSL is enabled (settings are already loaded at import time)
+        if "sslmode=require" in os.getenv("METADATA_POSTGRES_DSN", ""):
+            pytest.skip("Test requires non-SSL environment")
+
         # Set DSN with sslmode=disable
         with pytest.MonkeyPatch.context() as m:
             m.setenv(

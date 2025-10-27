@@ -10,6 +10,14 @@ services:
       POSTGRES_DB: test_brownie_metadata
     ports:
       - "5433:5432"
+    volumes:
+      - ../dev-certs:/certs:ro
+    command: >
+      postgres
+      -c ssl=on
+      -c ssl_cert_file=/certs/server.crt
+      -c ssl_key_file=/certs/server.key
+      -c ssl_ca_file=/certs/ca.crt
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s

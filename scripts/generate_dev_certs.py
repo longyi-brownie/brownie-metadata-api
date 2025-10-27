@@ -181,6 +181,104 @@ IP.1 = 127.0.0.1
     return True
 
 
+def generate_server_certificate(cert_dir: Path) -> bool:
+    """Generate server certificate for PostgreSQL."""
+    print("Generating server certificate...")
+
+    # Create server private key
+    success, output = run_command(
+        ["openssl", "genrsa", "-out", "server.key", "2048"], cwd=cert_dir
+    )
+
+    if not success:
+        print(f"Failed to generate server key: {output}")
+        return False
+
+    # Create server certificate signing request
+    server_config = """
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+prompt = no
+
+[req_distinguished_name]
+C = US
+ST = CA
+L = San Francisco
+O = Brownie Development
+OU = IT Department
+CN = localhost
+
+[v3_req]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = localhost
+DNS.2 = postgres
+DNS.3 = brownie-test-postgres
+IP.1 = 127.0.0.1
+"""
+
+    config_file = cert_dir / "server.conf"
+    config_file.write_text(server_config)
+
+    success, output = run_command(
+        [
+            "openssl",
+            "req",
+            "-new",
+            "-key",
+            "server.key",
+            "-out",
+            "server.csr",
+            "-config",
+            "server.conf",
+        ],
+        cwd=cert_dir,
+    )
+
+    if not success:
+        print(f"Failed to generate server CSR: {output}")
+        return False
+
+    # Sign server certificate with CA
+    success, output = run_command(
+        [
+            "openssl",
+            "x509",
+            "-req",
+            "-in",
+            "server.csr",
+            "-CA",
+            "ca.crt",
+            "-CAkey",
+            "ca.key",
+            "-CAcreateserial",
+            "-out",
+            "server.crt",
+            "-days",
+            "365",
+            "-extensions",
+            "v3_req",
+            "-extfile",
+            "server.conf",
+        ],
+        cwd=cert_dir,
+    )
+
+    if not success:
+        print(f"Failed to sign server certificate: {output}")
+        return False
+
+    # Set proper permissions for PostgreSQL
+    os.chmod(cert_dir / "server.key", 0o600)
+
+    print("✓ Server certificate generated")
+    return True
+
+
 def setup_postgresql_certificates(cert_dir: Path) -> bool:
     """Setup PostgreSQL to use the certificates."""
     print("Setting up PostgreSQL certificates...")
@@ -195,10 +293,14 @@ def setup_postgresql_certificates(cert_dir: Path) -> bool:
     shutil.copy2(cert_dir / "ca.crt", pg_cert_dir / "ca.crt")
     shutil.copy2(cert_dir / "client.crt", pg_cert_dir / "client.crt")
     shutil.copy2(cert_dir / "client.key", pg_cert_dir / "client.key")
+    shutil.copy2(cert_dir / "server.crt", pg_cert_dir / "server.crt")
+    shutil.copy2(cert_dir / "server.key", pg_cert_dir / "server.key")
 
     # Set proper permissions
     os.chmod(pg_cert_dir / "client.key", 0o600)
+    os.chmod(pg_cert_dir / "server.key", 0o600)
     os.chmod(pg_cert_dir / "client.crt", 0o644)
+    os.chmod(pg_cert_dir / "server.crt", 0o644)
     os.chmod(pg_cert_dir / "ca.crt", 0o644)
 
     print(f"✓ PostgreSQL certificates copied to {pg_cert_dir}")
@@ -233,11 +335,21 @@ def main():
     if not generate_client_certificate(cert_dir):
         sys.exit(1)
 
+    if not generate_server_certificate(cert_dir):
+        sys.exit(1)
+
     if not setup_postgresql_certificates(cert_dir):
         sys.exit(1)
 
     # Clean up temporary files
-    for file in ["ca.conf", "client.conf", "client.csr", "ca.srl"]:
+    for file in [
+        "ca.conf",
+        "client.conf",
+        "server.conf",
+        "client.csr",
+        "server.csr",
+        "ca.srl",
+    ]:
         temp_file = cert_dir / file
         if temp_file.exists():
             temp_file.unlink()

@@ -155,9 +155,10 @@ jobs:
       run: |
         # Test database connection with certificates
         uv run python -c "
+        from sqlalchemy import text
         from app.db import get_db
         db = next(get_db())
-        result = db.execute('SELECT 1').fetchone()
+        result = db.execute(text('SELECT 1')).fetchone()
         print('Certificate authentication successful:', result)
         db.close()
         "

@@ -34,28 +34,74 @@ jobs:
 
     - name: Generate SSL certificates
       run: |
-        # Generate certificates for SSL testing
+        echo "=== Generating SSL certificates ==="
         uv run python scripts/generate_dev_certs.py
         
-        # Verify certificates were created
+        echo ""
+        echo "=== Certificates created ==="
         ls -la dev-certs/
         
-        # Set proper permissions
-        chmod 600 dev-certs/server.key dev-certs/client.key
+        echo ""
+        echo "=== Setting permissions ==="
+        # PostgreSQL requires 0600 for private keys
+        chmod 600 dev-certs/server.key dev-certs/client.key dev-certs/ca.key
+        chmod 644 dev-certs/server.crt dev-certs/client.crt dev-certs/ca.crt
+        
+        echo ""
+        echo "=== Final permissions ==="
+        ls -la dev-certs/
+        
+        echo ""
+        echo "=== Verifying certificate content ==="
+        openssl x509 -in dev-certs/server.crt -noout -subject -issuer
+        openssl x509 -in dev-certs/client.crt -noout -subject -issuer
+        
+        echo ""
+        echo "=== Workspace path ==="
+        pwd
+        echo "Certificates at: $(pwd)/dev-certs/"
 
     - name: Start PostgreSQL with Docker Compose
       run: |
-        # Use the same docker-compose setup as local development (with SSL)
+        echo "=== Starting PostgreSQL with SSL ==="
         docker compose -f tests/docker-compose.test.yml up -d
         
-        # Wait for PostgreSQL to be ready
-        echo "Waiting for PostgreSQL to be ready..."
-        timeout 30 bash -c 'until docker exec brownie-test-postgres pg_isready -U postgres; do sleep 1; done'
+        echo ""
+        echo "=== Waiting for PostgreSQL to be ready ==="
+        for i in {1..30}; do
+          if docker exec brownie-test-postgres pg_isready -U postgres 2>/dev/null; then
+            echo "PostgreSQL is ready after $i seconds"
+            break
+          fi
+          echo "Waiting... ($i/30)"
+          sleep 1
+        done
         
-        # Verify PostgreSQL is running and SSL is enabled
-        docker ps
-        docker logs brownie-test-postgres
-        docker exec brownie-test-postgres psql -U postgres -c "SHOW ssl;"
+        echo ""
+        echo "=== Container Status ==="
+        docker ps -a | grep brownie-test-postgres
+        
+        echo ""
+        echo "=== Container Inspect ==="
+        docker inspect brownie-test-postgres --format='{{.State.Status}}: {{.State.Error}}'
+        
+        echo ""
+        echo "=== PostgreSQL Logs (last 30 lines) ==="
+        docker logs brownie-test-postgres 2>&1 | tail -30
+        
+        echo ""
+        echo "=== Certificate Permissions in Container ==="
+        docker exec brownie-test-postgres ls -la /certs/ || echo "Failed to list certs"
+        
+        echo ""
+        echo "=== PostgreSQL Config Check ==="
+        docker exec brownie-test-postgres psql -U postgres -c "SHOW ssl;" || echo "Failed to check SSL"
+        docker exec brownie-test-postgres psql -U postgres -c "SHOW ssl_cert_file;" || echo "Failed to check cert file"
+        docker exec brownie-test-postgres psql -U postgres -c "SHOW ssl_key_file;" || echo "Failed to check key file"
+        
+        echo ""
+        echo "=== Test SSL Connection ==="
+        docker exec brownie-test-postgres psql -U postgres -c "SELECT version();" || echo "Failed to connect"
 
     - name: Run linting
       run: |
@@ -76,13 +122,48 @@ jobs:
         METADATA_JWT_SECRET: "test-jwt-secret-key-for-testing-only"
         METADATA_DEBUG: "true"
       run: |
-        # Run all tests with coverage (SSL with verify-full enabled)
+        echo "=== Test Environment ==="
+        echo "Workspace: ${{ github.workspace }}"
+        echo "DSN: $METADATA_POSTGRES_DSN"
+        
+        echo ""
+        echo "=== Verify certificate files exist ==="
+        ls -la ${{ github.workspace }}/dev-certs/
+        
+        echo ""
+        echo "=== Test database connection before pytest ==="
+        PGSSLMODE=verify-full PGSSLCERT=${{ github.workspace }}/dev-certs/client.crt PGSSLKEY=${{ github.workspace }}/dev-certs/client.key PGSSLROOTCERT=${{ github.workspace }}/dev-certs/ca.crt psql "postgresql://postgres:postgres@localhost:5433/test_brownie_metadata" -c "SELECT 1;" || echo "Direct connection failed"
+        
+        echo ""
+        echo "=== Running pytest with SSL ==="
         uv run pytest tests/ -v --cov=app --cov-report=xml --cov-report=html
+    
+    - name: Debug on failure
+      if: failure()
+      run: |
+        echo "=== Tests failed - collecting debug info ==="
+        echo ""
+        echo "=== PostgreSQL Status ==="
+        docker ps -a | grep brownie-test-postgres || echo "Container not found"
+        
+        echo ""
+        echo "=== PostgreSQL Logs (last 50 lines) ==="
+        docker logs brownie-test-postgres 2>&1 | tail -50 || echo "Could not get logs"
+        
+        echo ""
+        echo "=== Certificate files ==="
+        ls -la ${{ github.workspace }}/dev-certs/ || echo "Certs not found"
+        
+        echo ""
+        echo "=== Environment ==="
+        env | grep METADATA || echo "No METADATA env vars"
     
     - name: Stop PostgreSQL
       if: always()
       run: |
+        echo "=== Stopping PostgreSQL ==="
         docker compose -f tests/docker-compose.test.yml down -v
+        echo "PostgreSQL stopped and volumes removed"
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4

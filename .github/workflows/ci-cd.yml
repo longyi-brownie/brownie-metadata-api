@@ -70,12 +70,13 @@ jobs:
         uv run bandit -r app/ -f json -o bandit-report.json || true
         uv run safety check --json --output safety-report.json || true
     
-    - name: Run unit tests
+    - name: Run tests
       env:
         METADATA_POSTGRES_DSN: "postgresql://test_user:test_password@localhost:5432/test_brownie_metadata?sslmode=disable"
         METADATA_JWT_SECRET: "test-jwt-secret-key-for-testing-only"
         METADATA_DEBUG: "true"
       run: |
+        # Run all tests (SSL integration tests will be skipped - see ssl-tests.yml workflow)
         uv run pytest tests/ -v --cov=app --cov-report=xml --cov-report=html
     
     - name: Run integration tests

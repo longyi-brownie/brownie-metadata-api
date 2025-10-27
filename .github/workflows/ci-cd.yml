@@ -13,21 +13,6 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
-    services:
-      postgres:
-        image: postgres:14
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-          POSTGRES_DB: test_brownie_metadata
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
 
     steps:
     - uses: actions/checkout@v4
@@ -47,16 +32,18 @@ jobs:
         uv sync --dev
         uv add --dev ruff mypy bandit safety
 
-    - name: Set up test database
+    - name: Start PostgreSQL with Docker Compose
       run: |
-        # Clean up any existing test database and user
-        PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS test_brownie_metadata;" || true
-        PGPASSWORD=postgres psql -h localhost -U postgres -c "DROP USER IF EXISTS test_user;" || true
-
-        # Create test user and database
-        PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE USER test_user WITH PASSWORD 'test_password';"
-        PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE test_brownie_metadata OWNER test_user;"
-        PGPASSWORD=postgres psql -h localhost -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE test_brownie_metadata TO test_user;"
+        # Use the same docker-compose setup as local development
+        docker-compose -f tests/docker-compose.test.yml up -d
+        
+        # Wait for PostgreSQL to be ready
+        echo "Waiting for PostgreSQL to be ready..."
+        timeout 30 bash -c 'until docker exec brownie-test-postgres pg_isready -U postgres; do sleep 1; done'
+        
+        # Verify PostgreSQL is running
+        docker ps
+        docker logs brownie-test-postgres
 
     - name: Run linting
       run: |
@@ -72,28 +59,18 @@ jobs:
     
     - name: Run tests
       env:
-        METADATA_POSTGRES_DSN: "postgresql://test_user:test_password@localhost:5432/test_brownie_metadata?sslmode=disable"
+        # Use same DSN as local testing (port 5433, sslmode=disable)
+        METADATA_POSTGRES_DSN: "postgresql://postgres:postgres@localhost:5433/test_brownie_metadata?sslmode=disable"
         METADATA_JWT_SECRET: "test-jwt-secret-key-for-testing-only"
         METADATA_DEBUG: "true"
       run: |
-        # Run all tests (SSL integration tests will be skipped - see ssl-tests.yml workflow)
+        # Run all tests with coverage (SSL integration tests will be skipped)
         uv run pytest tests/ -v --cov=app --cov-report=xml --cov-report=html
     
-    - name: Run integration tests
-      env:
-        METADATA_POSTGRES_DSN: "postgresql://test_user:test_password@localhost:5432/test_brownie_metadata?sslmode=disable"
-        METADATA_JWT_SECRET: "test-jwt-secret-key-for-testing-only"
-        METADATA_DEBUG: "true"
+    - name: Stop PostgreSQL
+      if: always()
       run: |
-        uv run pytest tests/integration/ -v
-    
-    - name: Run comprehensive CRUD tests
-      env:
-        METADATA_POSTGRES_DSN: "postgresql://test_user:test_password@localhost:5432/test_brownie_metadata?sslmode=disable"
-        METADATA_JWT_SECRET: "test-jwt-secret-key-for-testing-only"
-        METADATA_DEBUG: "true"
-      run: |
-        uv run pytest tests/test_auth_comprehensive.py tests/test_user_crud_comprehensive.py -v
+        docker-compose -f tests/docker-compose.test.yml down -v
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4

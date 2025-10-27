@@ -63,19 +63,84 @@ jobs:
 
     - name: Start PostgreSQL with Docker Compose
       run: |
+        echo "=== Verifying docker-compose file ==="
+        cat tests/docker-compose.test.yml
+        
+        echo ""
+        echo "=== Verifying certificate paths ==="
+        ls -la dev-certs/
+        
+        echo ""
+        echo "=== Preparing certificates with correct ownership ==="
+        # Create a temporary container to set ownership
+        docker create --name temp-cert-setup postgres:16
+        docker cp dev-certs/server.crt temp-cert-setup:/tmp/
+        docker cp dev-certs/server.key temp-cert-setup:/tmp/
+        docker cp dev-certs/ca.crt temp-cert-setup:/tmp/
+        docker start temp-cert-setup
+        sleep 2
+        docker exec temp-cert-setup chown postgres:postgres /tmp/server.* /tmp/ca.crt
+        docker exec temp-cert-setup chmod 600 /tmp/server.key
+        docker exec temp-cert-setup chmod 644 /tmp/server.crt /tmp/ca.crt
+        docker exec temp-cert-setup mkdir -p /var/lib/postgresql/certs
+        docker exec temp-cert-setup cp /tmp/server.* /tmp/ca.crt /var/lib/postgresql/certs/
+        docker exec temp-cert-setup ls -la /var/lib/postgresql/certs/
+        
+        # Commit the container with certs
+        docker commit temp-cert-setup postgres-with-certs:test
+        docker stop temp-cert-setup
+        docker rm temp-cert-setup
+        
+        echo ""
         echo "=== Starting PostgreSQL with SSL ==="
-        docker compose -f tests/docker-compose.test.yml up -d
+        docker run -d --name brownie-test-postgres \
+          -e POSTGRES_USER=postgres \
+          -e POSTGRES_PASSWORD=postgres \
+          -e POSTGRES_DB=test_brownie_metadata \
+          -p 5433:5432 \
+          postgres-with-certs:test \
+          postgres \
+          -c ssl=on \
+          -c ssl_cert_file=/var/lib/postgresql/certs/server.crt \
+          -c ssl_key_file=/var/lib/postgresql/certs/server.key \
+          -c ssl_ca_file=/var/lib/postgresql/certs/ca.crt
+        
+        echo ""
+        echo "=== Immediate container check ==="
+        sleep 3
+        docker ps -a
+        
+        echo ""
+        echo "=== Full PostgreSQL Logs ==="
+        docker logs brownie-test-postgres 2>&1 || echo "Container not found or not started"
         
         echo ""
         echo "=== Waiting for PostgreSQL to be ready ==="
+        READY=0
         for i in {1..30}; do
           if docker exec brownie-test-postgres pg_isready -U postgres 2>/dev/null; then
-            echo "PostgreSQL is ready after $i seconds"
+            echo "✓ PostgreSQL is ready after $i seconds"
+            READY=1
             break
           fi
+          
+          # Check if container is still running
+          if ! docker ps | grep -q brownie-test-postgres; then
+            echo "✗ Container stopped! Logs:"
+            docker logs brownie-test-postgres 2>&1 | tail -50
+            exit 1
+          fi
+          
           echo "Waiting... ($i/30)"
           sleep 1
         done
+        
+        if [ $READY -eq 0 ]; then
+          echo "✗ PostgreSQL failed to become ready"
+          echo "Final logs:"
+          docker logs brownie-test-postgres 2>&1
+          exit 1
+        fi
         
         echo ""
         echo "=== Container Status ==="
@@ -83,25 +148,21 @@ jobs:
         
         echo ""
         echo "=== Container Inspect ==="
-        docker inspect brownie-test-postgres --format='{{.State.Status}}: {{.State.Error}}'
-        
-        echo ""
-        echo "=== PostgreSQL Logs (last 30 lines) ==="
-        docker logs brownie-test-postgres 2>&1 | tail -30
+        docker inspect brownie-test-postgres --format='Status: {{.State.Status}}, Error: {{.State.Error}}, ExitCode: {{.State.ExitCode}}'
         
         echo ""
         echo "=== Certificate Permissions in Container ==="
-        docker exec brownie-test-postgres ls -la /certs/ || echo "Failed to list certs"
+        docker exec brownie-test-postgres ls -la /certs/
         
         echo ""
         echo "=== PostgreSQL Config Check ==="
-        docker exec brownie-test-postgres psql -U postgres -c "SHOW ssl;" || echo "Failed to check SSL"
-        docker exec brownie-test-postgres psql -U postgres -c "SHOW ssl_cert_file;" || echo "Failed to check cert file"
-        docker exec brownie-test-postgres psql -U postgres -c "SHOW ssl_key_file;" || echo "Failed to check key file"
+        docker exec brownie-test-postgres psql -U postgres -c "SHOW ssl;"
+        docker exec brownie-test-postgres psql -U postgres -c "SHOW ssl_cert_file;"
+        docker exec brownie-test-postgres psql -U postgres -c "SHOW ssl_key_file;"
         
         echo ""
         echo "=== Test SSL Connection ==="
-        docker exec brownie-test-postgres psql -U postgres -c "SELECT version();" || echo "Failed to connect"
+        docker exec brownie-test-postgres psql -U postgres -c "SELECT version();"
 
     - name: Run linting
       run: |
@@ -162,8 +223,10 @@ jobs:
       if: always()
       run: |
         echo "=== Stopping PostgreSQL ==="
-        docker compose -f tests/docker-compose.test.yml down -v
-        echo "PostgreSQL stopped and volumes removed"
+        docker stop brownie-test-postgres || true
+        docker rm brownie-test-postgres || true
+        docker rmi postgres-with-certs:test || true
+        echo "PostgreSQL stopped and cleaned up"
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4

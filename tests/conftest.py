@@ -1,9 +1,6 @@
 """Test configuration and fixtures."""
 
 import asyncio
-import os
-import tempfile
-from typing import AsyncGenerator, Generator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,10 +8,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from testcontainers.postgres import PostgresContainer
 
+from app.db import get_db
 from app.main import app
 from app.models import Base
-from app.db import get_db
-from app.settings import settings
 
 
 @pytest.fixture(scope="session")
@@ -27,9 +23,34 @@ def event_loop():
 
 @pytest.fixture(scope="session")
 def postgres_container():
-    """Start PostgreSQL container for testing."""
-    with PostgresContainer("postgres:16") as postgres:
-        yield postgres
+    """Start PostgreSQL container for testing using testcontainers.
+
+    Note: SSL testing would require complex certificate setup in containers.
+    For now, we test without SSL to keep tests simple and fast.
+    """
+    import os
+
+    if os.getenv("CI"):
+        # In CI, GitHub Actions provides a postgres service
+        from types import SimpleNamespace
+
+        container = SimpleNamespace()
+        default_dsn = "postgresql://postgres:postgres@localhost:5432/test_brownie_metadata?sslmode=disable"
+        dsn = os.getenv("METADATA_POSTGRES_DSN", default_dsn)
+        container.get_connection_url = lambda: dsn
+        yield container
+    elif os.getenv("METADATA_POSTGRES_DSN"):
+        # Local testing with pre-configured database
+        from types import SimpleNamespace
+
+        container = SimpleNamespace()
+        dsn = os.getenv("METADATA_POSTGRES_DSN")
+        container.get_connection_url = lambda: dsn
+        yield container
+    else:
+        # Locally, use testcontainers to spin up a temporary container
+        with PostgresContainer("postgres:16") as postgres:
+            yield postgres
 
 
 @pytest.fixture(scope="session")
@@ -41,6 +62,9 @@ def test_db_url(postgres_container):
 @pytest.fixture(scope="session")
 def test_engine(test_db_url):
     """Create test database engine."""
+    # Ensure all models are imported so tables are registered on Base.metadata
+    from app import models as _models  # noqa: F401
+
     engine = create_engine(test_db_url)
     Base.metadata.create_all(bind=engine)
     return engine
@@ -49,7 +73,9 @@ def test_engine(test_db_url):
 @pytest.fixture
 def test_db_session(test_engine):
     """Create test database session."""
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    TestingSessionLocal = sessionmaker(
+        autocommit=False, autoflush=False, bind=test_engine
+    )
     session = TestingSessionLocal()
     try:
         yield session
@@ -60,55 +86,69 @@ def test_db_session(test_engine):
 @pytest.fixture
 def client(test_db_session):
     """Create test client with database session override."""
+
     def override_get_db():
         try:
             yield test_db_session
         finally:
             pass
-    
+
     app.dependency_overrides[get_db] = override_get_db
-    
+
     with TestClient(app) as test_client:
         yield test_client
-    
+
     app.dependency_overrides.clear()
 
 
 @pytest.fixture
 def test_user_data():
     """Test user data."""
+    import time
+    import uuid
+
+    # Use both UUID and timestamp to ensure uniqueness across test runs
+    unique = f"{uuid.uuid4().hex[:8]}-{int(time.time() * 1000) % 100000}"
     return {
-        "email": "test@example.com",
+        "email": f"test-{unique}@example.com",
         "password": "testpassword123",
-        "username": "testuser",
+        "username": f"testuser-{unique}",
         "full_name": "Test User",
-        "organization_name": "Test Organization",
-        "team_name": "Test Team"
+        "organization_name": f"Test Organization {unique}",
+        "team_name": f"Test Team {unique}",
     }
 
 
 @pytest.fixture
 def test_organization_data():
     """Test organization data."""
+    import time
+    import uuid
+
+    unique = f"{uuid.uuid4().hex[:8]}-{int(time.time() * 1000) % 100000}"
     return {
-        "name": "Test Organization",
-        "slug": "test-org",
+        "name": f"Test Organization {unique}",
+        "slug": f"test-org-{unique}",
         "description": "A test organization",
         "is_active": True,
         "max_teams": 10,
-        "max_users_per_team": 50
+        "max_users_per_team": 50,
     }
 
 
 @pytest.fixture
 def test_team_data():
     """Test team data."""
+    import time
+    import uuid
+
+    unique = f"{uuid.uuid4().hex[:8]}-{int(time.time() * 1000) % 100000}"
     return {
-        "name": "Test Team",
-        "slug": "test-team",
+        "name": f"Test Team {unique}",
+        "slug": f"test-team-{unique}",
         "description": "A test team",
         "is_active": True,
-        "permissions": {}
+        "permissions": {},
     }
 
 
@@ -121,7 +161,7 @@ def test_incident_data():
         "status": "open",
         "priority": "medium",
         "tags": ["test", "incident"],
-        "incident_metadata": {"test": True}
+        "incident_metadata": {"test": True},
     }
 
 
@@ -140,7 +180,7 @@ def test_agent_config_data():
         "triggers": {},
         "conditions": {},
         "tags": ["test"],
-        "config_metadata": {}
+        "config_metadata": {},
     }
 
 
@@ -156,5 +196,5 @@ def test_stats_data():
         "time_window": "1m",
         "labels": {"test": True},
         "description": "A test metric",
-        "unit": "count"
+        "unit": "count",
     }

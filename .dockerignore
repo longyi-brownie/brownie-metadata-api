@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+.tox/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+docs/
+# Exclude specific docs but keep README.md for package metadata
+CHANGELOG.md
+CONTRIBUTING.md
+LICENSE.md
+
+# Config
+.env
+.env.*
+config/
+
+# Development
+# dev-certs/ - needed for test PostgreSQL SSL image
+tests/
+scripts/
+
+# CI/CD
+.github/
+
+# Misc
+*.log
+.DS_Store
+Makefile
+

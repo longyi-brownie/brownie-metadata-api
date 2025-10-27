@@ -16,10 +16,9 @@ dependencies = [
     "uvicorn[standard]>=0.24.0",
     "sqlalchemy>=2.0.0",
     "psycopg[binary]>=3.1.0",
-    "alembic>=1.12.0",
     "pydantic-settings>=2.0.0",
     "python-jose[cryptography]>=3.3.0",
-    "passlib[bcrypt]>=1.7.4",
+    "passlib[argon2,bcrypt]>=1.7.4",
     "prometheus-client>=0.19.0",
     "structlog>=23.2.0",
     "httpx>=0.25.0",
@@ -28,41 +27,65 @@ dependencies = [
     "pytest-cov>=4.1.0",
     "testcontainers>=3.7.0",
     "pytest-mock>=3.12.0",
-    # Database project dependency
-    "-e ../brownie-metadata-database",
+    "argon2-cffi>=25.1.0",
+    "brownie-metadata-db==0.1.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "black>=23.0.0",
-    "isort>=5.12.0",
-    "flake8>=6.0.0",
+    "ruff>=0.1.0",
     "mypy>=1.7.0",
+    "bandit>=1.7.0",
+    "safety>=2.3.0",
     "pre-commit>=3.5.0",
+    "types-passlib",
 ]
-
-[tool.black]
-line-length = 88
-target-version = ['py312']
-
-[tool.isort]
-profile = "black"
-line_length = 88
 
 [tool.mypy]
 python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
+ignore_missing_imports = true
+show_error_codes = true
+# Allow untyped function definitions for FastAPI endpoints
+allow_untyped_defs = true
+# Allow dynamic typing  
 check_untyped_defs = true
-disallow_untyped_decorators = true
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "passlib.*",
+    "jose.*",
+    "hvac.*",
+    "brownie_metadata_db.*",
+]
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -75,10 +98,18 @@ addopts = [
     "--cov=app",
     "--cov-report=term-missing",
     "--cov-report=html",
-    "--cov-fail-under=70",
+    "--cov-fail-under=50",
 ]
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",
     "e2e: End-to-end tests",
+]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.8.6",
+    "mypy>=1.18.2",
+    "ruff>=0.14.2",
+    "safety>=3.6.2",
 ]

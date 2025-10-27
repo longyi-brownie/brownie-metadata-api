@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  postgres-ssl:
+    image: postgres:16
+    container_name: brownie-metadata-postgres-ssl
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: test_brownie_metadata
+      # Enable SSL
+      POSTGRES_INITDB_ARGS: "--auth-host=cert --auth-local=trust"
+    ports:
+      - "5434:5432"
+    volumes:
+      # Mount certificates
+      - ../dev-certs/ca.crt:/var/lib/postgresql/ca.crt:ro
+      - ../dev-certs/client.crt:/var/lib/postgresql/server.crt:ro
+      - ../dev-certs/client.key:/var/lib/postgresql/server.key:ro
+      # PostgreSQL SSL configuration
+      - ./ssl-postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - brownie-test-ssl
+
+networks:
+  brownie-test-ssl:
+    driver: bridge
+

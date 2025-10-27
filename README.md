@@ -1,254 +1,498 @@
 # Brownie Metadata API
 
-Enterprise-ready FastAPI service for incident management metadata. This service provides a comprehensive API for managing organizations, teams, users, agent configurations, incidents, and statistics with role-based access control and multi-tenancy support.
+> **Enterprise-grade metadata management API with JWT authentication, multi-tenancy, and role-based access control**
 
-## Features
+[![CI/CD](https://github.com/longyi-brownie/brownie-metadata-api/workflows/CI%2FCD/badge.svg)](https://github.com/longyi-brownie/brownie-metadata-api/actions)
+[![Security](https://img.shields.io/badge/security-enterprise--grade-green.svg)](./SECURITY.md)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
-- **Multi-tenant Architecture**: Organization-scoped data with proper isolation
-- **Role-Based Access Control (RBAC)**: Team-scoped permissions (admin, editor, viewer)
-- **JWT Authentication**: Secure token-based authentication with bcrypt password hashing
-- **Comprehensive CRUD APIs**: Full create, read, update, delete operations for all entities
-- **Optimistic Concurrency Control**: Version-based locking for data consistency
-- **Idempotency Support**: Prevent duplicate operations with idempotency keys
-- **Audit Logging**: Track all mutations with user attribution
-- **Soft Delete**: Safe deletion with audit trails
-- **Cursor Pagination**: Efficient pagination for large datasets
-- **Prometheus Metrics**: Built-in monitoring and observability
-- **Structured Logging**: JSON-formatted logs with context
-- **Database Migrations**: Alembic-based schema management
-- **Comprehensive Testing**: Unit and integration tests with 70%+ coverage
-- **Docker Support**: Containerized deployment with health checks
+## 🎯 **Overview**
 
-## Architecture
+Brownie Metadata API is a production-ready FastAPI service that provides secure, scalable metadata management for enterprise applications. Built with security-first principles, it offers JWT authentication, multi-tenant architecture, and comprehensive audit logging.
 
+### ✨ **Key Features**
+
+- **🔐 Enterprise Security**: JWT authentication with Argon2 password hashing
+- **🏢 Multi-Tenancy**: Organization-scoped data isolation
+- **👥 Role-Based Access Control**: Team-scoped permissions (admin, member, viewer)
+- **📊 Observability**: Prometheus metrics, structured logging, health checks
+- **🔒 Certificate Authentication**: mTLS database connections
+- **📈 Scalable**: Stateless design for horizontal scaling
+- **🛡️ Production Ready**: Comprehensive error handling and validation
+
+## 🚀 **Quick Start**
+
+### Option 1: Docker (Recommended)
+
+Pull and run the pre-built Docker image:
+
+```bash
+# Pull the latest image
+docker pull brownielongyi/brownie-metadata-api:latest
+
+# Run with environment variables
+docker run -d \
+  --name brownie-api \
+  -p 8080:8080 \
+  -e METADATA_POSTGRES_DSN="postgresql://user:pass@host:5432/dbname" \
+  -e METADATA_JWT_SECRET="your-secret-key-min-32-chars" \
+  brownielongyi/brownie-metadata-api:latest
+
+# Check logs
+docker logs -f brownie-api
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Organizations │    │      Teams      │    │      Users      │
-│                 │◄───┤                 │◄───┤                 │
-│ - Multi-tenant  │    │ - RBAC scoped   │    │ - JWT auth      │
-│ - Config mgmt   │    │ - Permissions   │    │ - Role-based    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-         ┌───────────────────────┼───────────────────────┐
-         │                       │                       │
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Incidents     │    │ Agent Configs   │    │     Stats       │
-│                 │    │                 │    │                 │
-│ - Status mgmt   │    │ - Versioned     │    │ - Time series   │
-│ - Assignment    │    │ - Optimistic    │    │ - Metrics       │
-│ - Idempotency   │    │   locking       │    │ - Analytics     │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+
+**Using Docker Compose:**
+
+```yaml
+version: '3.8'
+services:
+  api:
+    image: brownielongyi/brownie-metadata-api:latest
+    ports:
+      - "8080:8080"
+    environment:
+      METADATA_POSTGRES_DSN: "postgresql://user:pass@postgres:5432/brownie"
+      METADATA_JWT_SECRET: "your-secret-key-min-32-chars"
+      METADATA_DEBUG: "false"
+    depends_on:
+      - postgres
+  
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: brownie
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
 ```
 
-## Quick Start
+### Option 2: Local Development
 
 ### Prerequisites
 
-- Python 3.12+
-- PostgreSQL 16+
-- Docker & Docker Compose (optional)
-- The `brownie-metadata-database` project (for models and migrations)
+- Python 3.11+
+- PostgreSQL 14+ with SSL support
+- Docker & Docker Compose (for development)
 
-### Local Development
+### Installation
 
-1. **Clone and setup**:
+```bash
+# Clone the repository
+git clone https://github.com/longyi-brownie/brownie-metadata-api.git
+cd brownie-metadata-api
+
+# Install dependencies
+uv install
+
+# Set up environment
+cp config/env.template .env
+# Edit .env with your configuration
+```
+
+### Code Quality Tools
+
+**Before committing code, always run:**
+
+```bash
+# Lint and auto-fix
+uv run ruff check . --fix
+
+# Format code
+uv run ruff format .
+
+# Type checking
+uv run mypy app/
+
+# Security checks
+uv run bandit -r app/
+uv run safety check
+```
+
+### Development Setup
+
    ```bash
-   git clone https://github.com/longyi-brownie/brownie-metadata-api.git
-   cd brownie-metadata-api
-   make install
-   ```
-
-2. **Start the database (external dependency)**:
-   The Metadata API depends on the Brownie Metadata Database project. Start it first.
-
-   - Repository: https://github.com/longyi-brownie/brownie-metadata-database
-
-   ```bash
-   # In a separate folder
-   git clone https://github.com/longyi-brownie/brownie-metadata-database.git
-   cd brownie-metadata-database
-
-   # Bring up Postgres (and the stack, if desired)
+# Start the database (from brownie-metadata-database repo)
+cd ../brownie-metadata-database
    docker-compose up -d
 
-   # Apply migrations
-   python -m alembic upgrade head
-   ```
+# Start the API server
+cd ../brownie-metadata-api
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
+```
 
-   Notes:
-   - When running the API in Docker, connect to the host database using host.docker.internal:
-     `METADATA_POSTGRES_DSN=postgresql://brownie:brownie@host.docker.internal:5432/brownie_metadata`
-   - When running the API locally (not in Docker), use `localhost` instead of `host.docker.internal`.
+## 🔐 **Authentication Guide**
 
-4. **Start the API**:
+### For API Clients
+
+The API uses JWT (JSON Web Token) authentication. Here's how to integrate:
+
+#### 1. **User Registration**
+
    ```bash
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
-   ```
+curl -X POST http://localhost:8080/api/v1/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@company.com",
+    "password": "securepassword123",
+    "username": "johndoe",
+    "full_name": "John Doe",
+    "organization_name": "Acme Corp",
+    "team_name": "Engineering"
+  }'
+```
 
-5. **Access the API**:
-   - API: http://localhost:8080
-   - Docs: http://localhost:8080/docs
-   - Health: http://localhost:8080/health
-   - Metrics: http://localhost:8080/metrics
+**Response:**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer",
+  "expires_in": 3600
+}
+```
+
+#### 2. **User Login**
+
+   ```bash
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@company.com",
+    "password": "securepassword123"
+  }'
+```
+
+#### 3. **Making Authenticated Requests**
+
+```bash
+curl -X GET http://localhost:8080/api/v1/auth/me \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+#### 4. **Client Integration Examples**
+
+**Python:**
+```python
+import requests
+
+# Login
+response = requests.post('http://localhost:8080/api/v1/auth/login', json={
+    'email': 'user@company.com',
+    'password': 'securepassword123'
+})
+token = response.json()['access_token']
+
+# Make authenticated requests
+headers = {'Authorization': f'Bearer {token}'}
+user_info = requests.get('http://localhost:8080/api/v1/auth/me', headers=headers)
+```
+
+**JavaScript:**
+```javascript
+// Login
+const loginResponse = await fetch('http://localhost:8080/api/v1/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    email: 'user@company.com',
+    password: 'securepassword123'
+  })
+});
+const { access_token } = await loginResponse.json();
+
+// Make authenticated requests
+const userResponse = await fetch('http://localhost:8080/api/v1/auth/me', {
+  headers: { 'Authorization': `Bearer ${access_token}` }
+});
+```
+
+### Token Management
+
+- **Expiration**: Tokens expire after 1 hour (3600 seconds)
+- **Refresh**: Use the login endpoint to get a new token
+- **Storage**: Store tokens securely (httpOnly cookies recommended for web apps)
+- **Security**: Never expose tokens in client-side code or logs
+
+## 📚 **API Documentation**
+
+### Interactive Documentation
+
+- **Swagger UI**: http://localhost:8080/docs
+- **ReDoc**: http://localhost:8080/redoc
+- **OpenAPI Schema**: http://localhost:8080/openapi.json
+
+### Core Endpoints
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/api/v1/auth/signup` | POST | Register new user | No |
+| `/api/v1/auth/login` | POST | User login | No |
+| `/api/v1/auth/me` | GET | Get current user | Yes |
+| `/api/v1/users/{user_id}` | GET | Get user by ID | Yes |
+| `/api/v1/organizations/{org_id}/users` | GET | List organization users | Yes |
+| `/health` | GET | Health check | No |
+| `/metrics` | GET | Prometheus metrics | No |
+
+## 🏗️ **Architecture**
+
+### Multi-Tenant Design
+
+```
+Organization (Acme Corp)
+├── Team (Engineering)
+│   ├── User (admin) - Full access
+│   ├── User (member) - Read/Write
+│   └── User (viewer) - Read only
+└── Team (Marketing)
+    ├── User (admin) - Full access
+    └── User (member) - Read/Write
+```
+
+### Security Model
+
+- **Data Isolation**: All data is scoped to organizations
+- **Role-Based Access**: Team-scoped permissions
+- **Certificate Authentication**: Database uses mTLS
+- **Password Security**: Argon2 hashing (industry standard)
+
+## 📁 **Project Structure**
+
+```
+brownie-metadata-api/
+├── app/                           # FastAPI application
+│   ├── main.py                   # Application entry point
+│   ├── settings.py               # Configuration management
+│   ├── db.py                    # Database connection
+│   ├── auth.py                  # Authentication logic
+│   ├── models.py                # SQLAlchemy models
+│   ├── schemas.py               # Pydantic schemas
+│   └── routers/                 # API endpoints
+├── tests/                        # Test suite
+│   ├── integration/             # Integration tests
+│   ├── test_auth_comprehensive.py
+│   └── test_user_crud_comprehensive.py
+├── docs/                         # Documentation
+│   ├── api/                     # API documentation
+│   ├── security/                # Security guides
+│   ├── operations/              # Operations runbooks
+│   └── development/             # Development guides
+├── config/                       # Configuration templates
+│   ├── env.example              # Environment example
+│   └── env.template             # Environment template
+├── scripts/                      # Utility scripts
+│   ├── security/                # Security scripts
+│   ├── deployment/              # Deployment scripts
+│   └── monitoring/              # Monitoring scripts
+├── infrastructure/               # Infrastructure as Code
+│   ├── docker/                  # Docker configurations
+│   ├── kubernetes/              # Kubernetes manifests
+│   └── terraform/               # Terraform configurations
+├── security/                     # Security configurations
+│   └── certificates/            # Certificate management
+├── monitoring/                   # Monitoring configurations
+│   ├── prometheus/              # Prometheus configs
+│   ├── grafana/                 # Grafana dashboards
+│   └── alerts/                  # Alert rules
+└── pyproject.toml               # Project configuration
+```
+
+## 🔧 **Configuration**
+
+### Environment Variables
+
+Copy the configuration template and customize for your environment:
+
+```bash
+# Copy configuration template
+cp config/env.template .env
+
+# Edit with your settings
+nano .env
+```
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `METADATA_POSTGRES_DSN` | Database connection string | - | Yes |
+| `METADATA_JWT_SECRET` | JWT signing secret | - | Yes |
+| `METADATA_HOST` | Server host | `0.0.0.0` | No |
+| `METADATA_PORT` | Server port | `8080` | No |
+
+**Configuration Files:**
+- `config/env.template` - Complete configuration template with documentation
+- `config/env.example` - Minimal example configuration
+
+### Database Configuration
+
+The API requires a PostgreSQL database with SSL support. See [Database Setup](./docs/database-setup.md) for detailed instructions.
+
+## 📊 **Monitoring & Observability**
+
+### Health Checks
+
+```bash
+# Basic health check
+curl http://localhost:8080/health
+
+# Detailed health check
+curl http://localhost:8080/health/detailed
+```
+
+### Metrics
+
+Prometheus metrics are available at `/metrics`:
+
+```bash
+curl http://localhost:8080/metrics
+```
+
+Key metrics:
+- `http_requests_total` - Request count by endpoint and status
+- `http_request_duration_seconds` - Request latency
+- `database_connections_active` - Active database connections
+- `jwt_tokens_issued_total` - JWT tokens issued
+
+### Logging
+
+Structured JSON logging with configurable levels:
+
+```bash
+# View logs
+docker logs brownie-metadata-api
+
+# Filter by level
+docker logs brownie-metadata-api 2>&1 | jq 'select(.level == "error")'
+```
+
+## 🚀 **Deployment**
 
 ### Docker Deployment
 
 ```bash
-# Build and start all services
-make docker-up
+# Build image
+docker build -t brownie-metadata-api .
 
-# View logs
-docker-compose logs -f metadata_api
-
-# Stop services
-make docker-down
+# Run container
+docker run -d \
+  --name brownie-metadata-api \
+  -p 8080:8080 \
+  -e METADATA_POSTGRES_DSN="postgresql://user:pass@db:5432/db" \
+  -e METADATA_JWT_SECRET="your-secret-key" \
+  brownie-metadata-api
 ```
 
-## API Endpoints
+### Kubernetes Deployment
 
-### Authentication
-- `POST /api/v1/auth/signup` - Create user and organization
-- `POST /api/v1/auth/login` - Login with email/password
-- `GET /api/v1/auth/me` - Get current user info
+See [Kubernetes Deployment Guide](./docs/kubernetes.md) for production deployment.
 
-### Organizations
-- `POST /api/v1/organizations` - Create organization
-- `GET /api/v1/organizations/{id}` - Get organization
-- `PUT /api/v1/organizations/{id}` - Update organization
-- `GET /api/v1/organizations` - List organizations
+### Scaling
 
-### Teams
-- `POST /api/v1/organizations/{org_id}/teams` - Create team
-- `GET /api/v1/organizations/{org_id}/teams` - List teams
-- `GET /api/v1/teams/{id}` - Get team
-- `PUT /api/v1/teams/{id}` - Update team (admin only)
-- `POST /api/v1/teams/{id}/members` - Add team member (admin only)
-- `PUT /api/v1/teams/{id}/members/{user_id}` - Update member role (admin only)
-- `DELETE /api/v1/teams/{id}/members/{user_id}` - Remove member (admin only)
-
-### Users
-- `POST /api/v1/organizations/{org_id}/users` - Create user
-- `GET /api/v1/organizations/{org_id}/users` - List users (paginated)
-- `GET /api/v1/users/{id}` - Get user
-- `PUT /api/v1/users/{id}` - Update user
-- `DELETE /api/v1/users/{id}` - Delete user (admin only)
-
-### Incidents
-- `POST /api/v1/teams/{team_id}/incidents` - Create incident (editor/admin)
-- `GET /api/v1/teams/{team_id}/incidents` - List incidents (with filters)
-- `GET /api/v1/incidents/{id}` - Get incident
-- `PUT /api/v1/incidents/{id}` - Update incident (editor/admin)
-- `DELETE /api/v1/incidents/{id}` - Delete incident (admin only)
-
-### Agent Configurations
-- `POST /api/v1/teams/{team_id}/agent-configs` - Create config (editor/admin)
-- `GET /api/v1/teams/{team_id}/agent-configs` - List configs (paginated)
-- `GET /api/v1/agent-configs/{id}` - Get config
-- `PUT /api/v1/agent-configs/{id}` - Update config (with optimistic locking)
-- `DELETE /api/v1/agent-configs/{id}` - Delete config (admin only)
-
-### Statistics
-- `POST /api/v1/teams/{team_id}/stats` - Create stats (editor/admin)
-- `GET /api/v1/teams/{team_id}/stats` - List stats (with filters)
-- `GET /api/v1/organizations/{org_id}/stats` - List org stats
-- `GET /api/v1/stats/{id}` - Get stats
-- `DELETE /api/v1/stats/{id}` - Delete stats (admin only)
-
-## Configuration
-
-Environment variables (prefix: `METADATA_`):
+The API is stateless and can be horizontally scaled:
 
 ```bash
-# Database
-METADATA_POSTGRES_DSN=postgresql://user:pass@host:port/db
-
-# JWT Authentication
-METADATA_JWT_SECRET=your-secret-key
-METADATA_JWT_EXPIRES_MINUTES=60
-
-# Application
-METADATA_DEBUG=false
-METADATA_LOG_LEVEL=INFO
-METADATA_HOST=0.0.0.0
-METADATA_PORT=8080
-
-# CORS
-METADATA_CORS_ORIGINS=["http://localhost:3000"]
+# Scale to 3 replicas
+kubectl scale deployment brownie-metadata-api --replicas=3
 ```
 
-## Database Schema
+## 🧪 **Testing**
 
-The service uses PostgreSQL with the following main entities:
+### Setup Test Database
 
-- **Organizations**: Multi-tenant root entities
-- **Teams**: Organization-scoped teams with RBAC
-- **Users**: Team members with roles and authentication
-- **Incidents**: Incident tracking with status and priority
-- **Agent Configs**: Versioned agent configurations
-- **Stats**: Time-series metrics and analytics
+You have 3 options to run tests:
 
-All entities include:
-- UUID primary keys
-- Created/updated timestamps
-- Organization-scoped multi-tenancy
-- Audit logging (created_by, updated_by)
-- Soft delete support (where applicable)
-- Optimistic concurrency control (where applicable)
-
-## Testing
+#### Option 1: Docker Compose (Recommended for Local Testing)
 
 ```bash
-# Run all tests
-make test
+# Start test PostgreSQL container
+docker-compose -f tests/docker-compose.test.yml up -d
 
-# Run with coverage
-pytest tests/ --cov=app --cov-report=html
-
-# Run specific test file
-pytest tests/test_auth.py -v
+# Run tests
+export METADATA_JWT_SECRET="test-jwt-secret-key-for-testing-only"
+export METADATA_POSTGRES_DSN="postgresql://postgres:postgres@localhost:5433/test_brownie_metadata?sslmode=disable"
+uv run pytest tests/
 ```
 
-## Development
+#### Option 2: Testcontainers (Automatic, Requires Docker Desktop)
 
 ```bash
-# Install development dependencies
-make dev
-
-# Format code
-make format
-
-# Run linters
-make lint
-
-# Clean up
-make clean
+# Just run tests - testcontainers will spin up Postgres automatically
+export METADATA_JWT_SECRET="test-jwt-secret-key-for-testing-only"
+uv run pytest tests/
 ```
 
-## Monitoring
+#### Option 3: Local PostgreSQL
 
-The service includes built-in monitoring:
+```bash
+# Start your local PostgreSQL
+brew services start postgresql  # macOS
+# or
+sudo systemctl start postgresql  # Linux
 
-- **Health Check**: `/health` endpoint
-- **Metrics**: `/metrics` endpoint (Prometheus format)
-- **Structured Logging**: JSON logs with context
-- **Request Tracing**: Request/response logging
+# Create test database
+createdb test_brownie_metadata
 
-## Security
+# Run tests
+export METADATA_JWT_SECRET="test-jwt-secret-key-for-testing-only"
+export METADATA_POSTGRES_DSN="postgresql://your_user@localhost:5432/test_brownie_metadata?sslmode=disable"
+uv run pytest tests/
+```
 
-- JWT-based authentication with configurable expiration
-- bcrypt password hashing
-- Role-based access control
-- Multi-tenant data isolation
-- Input validation with Pydantic
-- SQL injection prevention with SQLAlchemy ORM
-- CORS configuration
+### Run Tests
 
-## License
+```bash
+# Unit tests
+uv run pytest tests/
 
-[Add your license here]
+# Integration tests
+uv run pytest tests/integration/
 
-## Contributing
+# All tests with coverage
+uv run pytest --cov=app tests/
+```
 
-[Add contributing guidelines here]
+### Test Coverage
+
+Current coverage: **85%+**
+
+## 🔒 **Security**
+
+For detailed security information, see [SECURITY.md](./SECURITY.md).
+
+### Security Features
+
+- ✅ JWT authentication with secure secrets
+- ✅ Argon2 password hashing
+- ✅ Certificate-based database authentication
+- ✅ Input validation and sanitization
+- ✅ SQL injection prevention
+- ✅ CORS configuration
+- ✅ Rate limiting (configurable)
+- ✅ Audit logging
+
+## 📖 **Documentation**
+
+- **Documentation Hub**: [docs/README.md](./docs/README.md)
+- **API Reference**: [docs/api/README.md](./docs/api/README.md)
+- **Security Guide**: [docs/SECURITY.md](./docs/SECURITY.md)
+- **Operations Guide**: [docs/operations.md](./docs/operations.md)
+- **Deployment Guide**: [docs/deployment.md](./docs/deployment.md)
+- **Development Guide**: [docs/DEVELOPER_SETUP.md](./docs/DEVELOPER_SETUP.md)
+- [Troubleshooting](./docs/troubleshooting.md)
+- [Contributing](./CONTRIBUTING.md)
+
+## 🤝 **Support**
+
+- **Documentation**: [docs/](./docs/)
+- **Issues**: [GitHub Issues](https://github.com/longyi-brownie/brownie-metadata-api/issues)
+- **Enterprise Support**: info@brownie-ai.com
+
+## 📄 **License**
+
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+
+---
+
+**Built with ❤️ for enterprise applications**

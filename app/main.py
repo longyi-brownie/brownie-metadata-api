@@ -1,24 +1,25 @@
 """Main FastAPI application."""
 
-import structlog
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 
-from fastapi import FastAPI, HTTPException
+import structlog
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from starlette.responses import Response
 
 from .auth import router as auth_router
-from .db import init_db, close_db
+from .db import close_db, init_db
+from .okta_auth import okta_router
 from .routers import (
-    organizations,
-    teams,
-    users,
     agent_configs,
     incidents,
+    organizations,
     stats,
+    teams,
+    users,
 )
 from .schemas import HealthResponse
 from .settings import settings
@@ -34,7 +35,7 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(),
     ],
     context_class=dict,
     logger_factory=structlog.stdlib.LoggerFactory(),
@@ -46,15 +47,11 @@ logger = structlog.get_logger(__name__)
 
 # Prometheus metrics
 REQUEST_COUNT = Counter(
-    'http_requests_total',
-    'Total HTTP requests',
-    ['method', 'endpoint', 'status_code']
+    "http_requests_total", "Total HTTP requests", ["method", "endpoint", "status_code"]
 )
 
 REQUEST_DURATION = Histogram(
-    'http_request_duration_seconds',
-    'HTTP request duration',
-    ['method', 'endpoint']
+    "http_request_duration_seconds", "HTTP request duration", ["method", "endpoint"]
 )
 
 
@@ -95,25 +92,24 @@ app.add_middleware(
 @app.middleware("http")
 async def metrics_middleware(request, call_next):
     """Middleware for collecting metrics and logging."""
-    start_time = datetime.utcnow()
-    
+    start_time = datetime.now(UTC)
+
     response = await call_next(request)
-    
+
     # Calculate duration
-    duration = (datetime.utcnow() - start_time).total_seconds()
-    
+    duration = (datetime.now(UTC) - start_time).total_seconds()
+
     # Record metrics
     REQUEST_COUNT.labels(
         method=request.method,
         endpoint=request.url.path,
-        status_code=response.status_code
+        status_code=response.status_code,
     ).inc()
-    
-    REQUEST_DURATION.labels(
-        method=request.method,
-        endpoint=request.url.path
-    ).observe(duration)
-    
+
+    REQUEST_DURATION.labels(method=request.method, endpoint=request.url.path).observe(
+        duration
+    )
+
     # Log request
     logger.info(
         "HTTP request",
@@ -123,7 +119,7 @@ async def metrics_middleware(request, call_next):
         duration=duration,
         client_ip=request.client.host if request.client else None,
     )
-    
+
     return response
 
 
@@ -133,17 +129,20 @@ async def health_check():
     """Health check endpoint."""
     try:
         # Test database connection
+        from sqlalchemy import text
+
         from .db import engine
+
         with engine.connect() as conn:
-            conn.execute("SELECT 1")
+            conn.execute(text("SELECT 1"))
         db_status = "healthy"
     except Exception as e:
         logger.error("Database health check failed", error=str(e))
         db_status = "unhealthy"
-    
+
     return HealthResponse(
         status="healthy" if db_status == "healthy" else "unhealthy",
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(UTC),
         version="0.1.0",
         database=db_status,
     )
@@ -158,6 +157,7 @@ async def metrics():
 
 # Mount routers under /api/v1
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["authentication"])
+app.include_router(okta_router, prefix="/api/v1", tags=["okta"])
 app.include_router(organizations.router, prefix="/api/v1", tags=["organizations"])
 app.include_router(teams.router, prefix="/api/v1", tags=["teams"])
 app.include_router(users.router, prefix="/api/v1", tags=["users"])
@@ -177,18 +177,19 @@ async def global_exception_handler(request, exc):
         method=request.method,
         exc_info=True,
     )
-    
+
     return JSONResponse(
         status_code=500,
         content={
             "detail": "Internal server error",
             "type": "internal_error",
-        }
+        },
     )
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "app.main:app",
         host=settings.host,

@@ -15,10 +15,16 @@ from app.cert_manager import cert_manager
 from app.db import _build_database_url_with_certs
 
 
+def _ssl_enabled() -> bool:
+    """Check if SSL is enabled in the test environment."""
+    dsn = os.getenv("METADATA_POSTGRES_DSN", "")
+    return "sslmode=verify-full" in dsn or os.getenv("TEST_SSL_ENABLED") == "true"
+
+
 @pytest.mark.integration
 @pytest.mark.skipif(
-    not os.getenv("TEST_SSL_ENABLED"),
-    reason="SSL tests require TEST_SSL_ENABLED=true and SSL-enabled PostgreSQL",
+    not _ssl_enabled(),
+    reason="SSL tests require SSL-enabled PostgreSQL (sslmode=verify-full or TEST_SSL_ENABLED=true)",
 )
 class TestSSLConnection:
     """Test SSL database connections."""
@@ -221,7 +227,8 @@ class TestSSLConnectionFallback:
     def test_build_url_respects_sslmode_disable(self):
         """Test that URL builder respects sslmode=disable."""
         # Skip if SSL is enabled (settings are already loaded at import time)
-        if "sslmode=require" in os.getenv("METADATA_POSTGRES_DSN", ""):
+        dsn = os.getenv("METADATA_POSTGRES_DSN", "")
+        if "sslmode=require" in dsn or "sslmode=verify-full" in dsn:
             pytest.skip("Test requires non-SSL environment")
 
         # Set DSN with sslmode=disable

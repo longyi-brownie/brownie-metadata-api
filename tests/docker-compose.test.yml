@@ -12,12 +12,15 @@ services:
       - "5433:5432"
     volumes:
       - ../dev-certs:/certs:ro
+      - ./pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
     command: >
       postgres
       -c ssl=on
       -c ssl_cert_file=/certs/server.crt
       -c ssl_key_file=/certs/server.key
       -c ssl_ca_file=/certs/ca.crt
+      -c ssl_prefer_server_ciphers=on
+      -c hba_file=/etc/postgresql/pg_hba.conf
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s

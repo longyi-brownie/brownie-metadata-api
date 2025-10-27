@@ -71,13 +71,12 @@ jobs:
     
     - name: Run tests
       env:
-        # Use SSL-enabled DSN with certificates
-        METADATA_POSTGRES_DSN: "postgresql://postgres:postgres@localhost:5433/test_brownie_metadata?sslmode=require&sslcert=dev-certs/client.crt&sslkey=dev-certs/client.key&sslrootcert=dev-certs/ca.crt"
+        # Use SSL with full verification and client certificates (same as local)
+        METADATA_POSTGRES_DSN: "postgresql://postgres:postgres@localhost:5433/test_brownie_metadata?sslmode=verify-full&sslcert=${{ github.workspace }}/dev-certs/client.crt&sslkey=${{ github.workspace }}/dev-certs/client.key&sslrootcert=${{ github.workspace }}/dev-certs/ca.crt"
         METADATA_JWT_SECRET: "test-jwt-secret-key-for-testing-only"
         METADATA_DEBUG: "true"
-        LOCAL_CERT_DIR: "dev-certs"
       run: |
-        # Run all tests with coverage (including SSL tests)
+        # Run all tests with coverage (SSL with verify-full enabled)
         uv run pytest tests/ -v --cov=app --cov-report=xml --cov-report=html
     
     - name: Stop PostgreSQL

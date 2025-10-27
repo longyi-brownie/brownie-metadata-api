@@ -44,11 +44,11 @@ def _build_database_url_with_certs() -> str:
     ssl_config = cert_manager.get_database_ssl_config(mtls_enabled=mtls_enabled)
 
     # If no certificates available (e.g., tests), don't add SSL requirements
-    if not ssl_config.get("sslcert") and existing_sslmode != "require":
-        # Don't add SSL mode, keep DSN as-is
+    if not ssl_config.get("sslcert"):
+        # No certificates - don't add any SSL config, keep DSN as-is
         return settings.postgres_dsn
 
-    # Add SSL parameters to query string
+    # Add SSL parameters to query string (only if we have certificates)
     for key, value in ssl_config.items():
         if value:
             query_params[key] = [str(value)]

@@ -130,7 +130,7 @@ jobs:
         
         echo ""
         echo "=== Certificate Permissions in Container ==="
-        docker exec brownie-test-postgres ls -la /certs/
+        docker exec brownie-test-postgres ls -la /var/lib/postgresql/certs/
         
         echo ""
         echo "=== PostgreSQL Config Check ==="

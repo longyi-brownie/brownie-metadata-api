@@ -72,18 +72,22 @@ jobs:
         
         echo ""
         echo "=== Preparing certificates with correct ownership ==="
-        # Create a temporary container to set ownership
-        docker create --name temp-cert-setup postgres:16
-        docker cp dev-certs/server.crt temp-cert-setup:/tmp/
-        docker cp dev-certs/server.key temp-cert-setup:/tmp/
-        docker cp dev-certs/ca.crt temp-cert-setup:/tmp/
-        docker start temp-cert-setup
-        sleep 2
-        docker exec temp-cert-setup chown postgres:postgres /tmp/server.* /tmp/ca.crt
-        docker exec temp-cert-setup chmod 600 /tmp/server.key
-        docker exec temp-cert-setup chmod 644 /tmp/server.crt /tmp/ca.crt
+        # Start a temporary container
+        docker run -d --name temp-cert-setup postgres:16
+        sleep 3
+        
+        # Copy certs and set ownership
         docker exec temp-cert-setup mkdir -p /var/lib/postgresql/certs
-        docker exec temp-cert-setup cp /tmp/server.* /tmp/ca.crt /var/lib/postgresql/certs/
+        docker cp dev-certs/server.crt temp-cert-setup:/var/lib/postgresql/certs/
+        docker cp dev-certs/server.key temp-cert-setup:/var/lib/postgresql/certs/
+        docker cp dev-certs/ca.crt temp-cert-setup:/var/lib/postgresql/certs/
+        
+        docker exec temp-cert-setup chown postgres:postgres /var/lib/postgresql/certs/server.* /var/lib/postgresql/certs/ca.crt
+        docker exec temp-cert-setup chmod 600 /var/lib/postgresql/certs/server.key
+        docker exec temp-cert-setup chmod 644 /var/lib/postgresql/certs/server.crt /var/lib/postgresql/certs/ca.crt
+        
+        echo ""
+        echo "=== Verifying cert ownership ==="
         docker exec temp-cert-setup ls -la /var/lib/postgresql/certs/
         
         # Commit the container with certs
